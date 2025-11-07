@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Book</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <!-- ========================================
+         LOGIN SCREEN
+    ======================================== -->
+    <div id="login-screen">
+        <div class="login-card">
+            <img src="logo.png" class="login-logo" alt="Logo" />
+            <h1 class="login-title">Recipe Book</h1>
+            <p class="login-subtitle">Your family's cookbook — organized, shared, and always backed up.</p>
+            <button id="google-login" class="google-btn">
+                <svg class="google-icon" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                Continue with Google
+            </button>
+        </div>
+    </div>
+
+    <!-- ========================================
+         MAIN APP
+    ======================================== -->
+    <div id="app" class="hidden">
+        <!-- Banner -->
+        <div class="banner">
+            <img src="gradients.png" alt="Banner" class="banner-img">
+        </div>
+
+        <div class="main-container">
+            <!-- Left Sidebar -->
+            <aside class="left-sidebar">
+                <div class="logo-section">
+                    <img src="fork-knife-logo.png" alt="Recipe Book Logo" class="logo-icon">
+                    <div class="app-title">Recipe Book</div>
+                </div>
+
+                <!-- Navigation Dropdown -->
+                <div class="navigation-dropdown">
+                    <button class="nav-toggle" id="nav-toggle">
+                        <svg class="nav-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 5l7 7-7 7"/>
+                        </svg>
+                        Navigation
+                    </button>
+                    <div class="nav-menu hidden" id="nav-menu">
+                        <div><a href="#actions" class="nav-link">Actions</a></div>
+                        <div><a href="#cuisines" class="nav-link">Cuisines</a></div>
+                        <div><a href="#recipes" class="nav-link">Recipes</a></div>
+                        <div><a href="#ingredients" class="nav-link">Ingredients</a></div>
+                    </div>
+                </div>
+
+                <div class="sidebar-section" id="actions">
+                    <div class="section-title">Actions</div>
+                    <button id="new-recipe-btn" class="action-btn">
+                        <img src="recipe-create.png" alt="" class="btn-icon">
+                        New Recipe
+                    </button>
+                    <button id="new-ingredient-btn" class="action-btn">
+                        <img src="apple.png" alt="" class="btn-icon">
+                        New Ingredient
+                    </button>
+                    <button id="download-btn" class="action-btn">
+                        <img src="book.png" alt="" class="btn-icon">
+                        Download Cookbook
+                    </button>
+                </div>
+
+                <div id="cuisines">
+                    <div class="section-title">Cuisines</div>
+
+                    <div class="sidebar-cuisines-header">
+
+                        <!-- LEFT: ALL pill -->
+                        <button class="sidebar-pill">
+                            <img src="flag.png" class="sidebar-flag">
+                            All
+                        </button>
+
+                        <!-- RIGHT: settings + new -->
+                        <div class="sidebar-actions">
+
+                            <div class="icon-wrapper" data-tooltip="Settings">
+                                <button class="sidebar-settings">
+                                    <img src="settings.png" class="sidebar-settings-icon">
+                                </button>
+                            </div>
+
+                            <!-- ⭐ New Cuisine button ⭐ -->
+                            <button class="sidebar-new-btn" id="cuisines-new-btn">
+                                New
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                                    <path d="M6 9l6 6 6-6"/>
+                                </svg>
+                            </button>
+
+                        </div>
+                    </div>
+
+                    <!-- ⭐ The cuisine list goes HERE — the ONLY one ⭐ -->
+                    <div id="cuisines-list" class="cuisines-list"></div>
+
+                </div>
+
+                <div class="logout-container">
+                    <button id="logout-btn" class="logout-btn">Logout</button>
+                </div>
+            </aside>
+
+            <!-- Right Content -->
+            <main class="right-content">
+                <div id="recipes">
+                    <h2 class="section-title recipes-title">Recipes</h2>
+                
+                <div class="recipes-header-options">
+
+                    <!-- LEFT -->
+                    <div class="recipes-left">
+                        <button class="sidebar-pill recipe-pill">
+                            <img src="flag.png" class="sidebar-flag">
+                            All
+                        </button>
+                    </div>
+
+                    <!-- RIGHT -->
+                    <div class="recipes-right">
+
+                        <!-- GROUP 1: Search + Settings (close spacing) -->
+                        <div class="recipes-controls-left">
+                            <div class="icon-wrapper" data-tooltip="Search">
+                                <button class="recipe-search-icon">
+                                    <img src="search.png" class="search-only-icon">
+                                </button>
+                            </div>
+
+                            <div class="icon-wrapper" data-tooltip="Settings">
+                                <button class="sidebar-settings recipe-settings">
+                                    <img src="settings.png" class="sidebar-settings-icon">
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- GROUP 2: New (separate spacing) -->
+                        <div class="new-dropdown-wrapper">
+                            <button class="sidebar-new-btn recipe-new-btn" id="recipes-new-btn">
+                                New
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                                    <path d="M6 9l6 6 6-6"/>
+                                </svg>
+                            </button>
+                            <div class="new-dropdown-menu hidden" id="recipes-new-dropdown">
+                                <div class="dropdown-item">Upload</div>
+                                <div class="dropdown-item">From Scratch</div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Recipe Grid -->
+                <div id="recipe-grid" class="recipe-grid">
+                    <!-- Sample Recipe Cards
+                    <div class="recipe-card" onclick="showRecipeDetail()">
+                        <div class="recipe-image">Image</div>
+                        <div class="recipe-info">
+                            <div class="recipe-title-row">
+                                <img src="fork-knife-logo.png" class="recipe-icon">
+                                <span class="recipe-name">Name</span>
+                            </div>
+
+                            <div class="recipe-stars">
+                                <span class="star">☆</span>
+                                <span class="star">☆</span>
+                                <span class="star">☆</span>
+                                <span class="star">☆</span>
+                                <span class="star">☆</span>
+                            </div>
+                            <div class="recipe-time">
+                                <svg class="clock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <path d="M12 6v6l4 2"/>
+                                </svg>
+                                # Minutes
+                            </div>
+                        </div>
+                    </div> -->
+                </div>
+
+                <div id="no-recipes" class="no-recipes hidden">
+                    No recipes yet
+                </div>
+
+                </div>
+
+                <!-- Ingredients Section -->
+                <div id="ingredients">
+                    <h2 class="section-title ingredients-title">Ingredients</h2>
+                    
+                    <div class="ingredients-header">
+
+                        <!-- LEFT SIDE -->
+                        <div class="ingredients-left">
+                            <div class="ingredients-pill">
+                                <img src="shopping.png" class="ingredients-cart-icon">
+                                <span>Shopping</span>
+                            </div>
+                        </div>
+
+                        <!-- RIGHT SIDE -->
+                        <div class="ingredients-right">
+                            <div class="icon-wrapper" data-tooltip="Search">
+                                <button class="recipe-search-icon">
+                                    <img src="search.png" class="search-only-icon">
+                                </button>
+                            </div>
+
+                            <div class="icon-wrapper" data-tooltip="Settings">
+                                <button class="sidebar-settings recipe-settings">
+                                    <img src="settings.png" class="sidebar-settings-icon">
+                                </button>
+                            </div>
+
+                            <div class="new-dropdown-wrapper">
+                                <button class="sidebar-new-btn recipe-new-btn" id="ingredients-new-btn">
+                                    New
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                                        <path d="M6 9l6 6 6-6"/>
+                                    </svg>
+                                </button>
+                                <div class="new-dropdown-menu hidden" id="ingredients-new-dropdown">
+                                    <div class="dropdown-item">Upload</div>
+                                    <div class="dropdown-item">From Scratch</div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="ingredients-grid">
+                        <!-- Placeholder for ingredients -->
+                        <div class="no-ingredients">No ingredients yet</div>
+                    </div>
+                </div>
+
+                <!-- Recipe Detail Panel (hidden by default) -->
+                <div id="recipe-detail" class="recipe-detail hidden">
+                    <div class="detail-header">
+                        <div>
+                            <svg class="detail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z"/>
+                            </svg>
+                            <h1 class="detail-title">Name</h1>
+                        </div>
+                        <button class="close-btn" onclick="hideRecipeDetail()">×</button>
+                    </div>
+
+                    <div class="meta-item">
+                        <div class="meta-label">Cuisines</div>
+                        <div class="meta-value empty-field" id="meta-cuisine">Empty</div>
+                    </div>
+
+                    <div class="meta-item">
+                        <div class="meta-label">Minutes</div>
+                        <div class="meta-value empty-field" id="meta-minutes">Empty</div>
+                    </div>
+
+                    <div class="meta-item">
+                        <div class="meta-label">Rating</div>
+                        <div class="meta-value" id="meta-rating">
+                            ☆ ☆ ☆ ☆ ☆
+                        </div>
+                    </div>
+
+                    <div class="meta-item">
+                        <div class="meta-label">Servings</div>
+                        <div class="meta-value empty-field" id="meta-servings">Empty</div>
+                    </div>
+
+                    <div class="meta-item">
+                        <div class="meta-label">Created time</div>
+                        <div class="meta-value meta-created" id="meta-created">
+                            November 18, 2025 at 2:51 PM
+                        </div>
+                    </div>
+
+
+                    <div class="detail-section">
+                        <h2 class="section-heading">Ingredients</h2>
+                        <div class="ingredients-list">
+                            <div class="ingredient-item">Empty</div>
+                        </div>
+                    </div>
+
+                    <div class="detail-section">
+                        <h2 class="section-heading">Instructions</h2>
+                        <div class="instructions-list">
+                            <div class="instruction-item">Empty</div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- ========================================
+         NEW RECIPE SIDE PANEL
+    ======================================== -->
+    <div id="recipe-side-panel" class="side-panel">
+        <!-- Functional Panel -->
+        <div class="side-panel-topbar">
+            <button class="panel-btn close-panel-btn">»</button>
+            <button class="panel-btn expand-panel-btn">⤢</button>
+            <span class="panel-share">Share</span>
+        </div>
+
+        <!-- Cover Image Section -->
+        <div class="cover-image-section" id="cover-image-section">
+
+            <img id="cover-image-preview" class="cover-image-preview" src="" alt="Cover">
+
+            <div class="cover-image-placeholder" id="cover-image-placeholder">
+                <span>Click to add cover image</span>
+            </div>
+
+            <!-- ⭐ ADD THIS LINE BELOW (nothing else removed) ⭐ -->
+            <div id="reposition-overlay" class="reposition-overlay">Drag image to reposition</div>
+
+            <div class="cover-image-controls">
+                <button class="cover-btn" id="change-cover-btn">Change cover</button>
+                <button class="cover-btn" id="reposition-btn">Reposition</button>
+            </div>
+
+        </div>
+
+                
+        <!-- Hidden file input -->
+        <input type="file" id="cover-image-input" accept="image/*" style="display: none;">
+        
+        <!-- Image URL Modal -->
+        <div class="image-modal-overlay hidden" id="image-modal-overlay">
+            <div class="image-modal" id="image-url-modal">
+                <div class="image-modal-tabs">
+                    <button class="modal-tab active" data-tab="upload">Upload</button>
+                    <button class="modal-tab" data-tab="link">Link</button>
+                    <button class="modal-remove-btn" id="remove-cover-btn">Remove</button>
+                </div>
+                
+                <!-- Upload Tab Content -->
+                <div class="modal-tab-content active" id="upload-tab">
+                    <button class="upload-file-btn" id="upload-file-btn">Upload file</button>
+                    <p class="upload-hint">Images wider than 1500 pixels work best.</p>
+                </div>
+                
+                <!-- Link Tab Content -->
+                <div class="modal-tab-content" id="link-tab">
+                    <input type="text" class="link-input" id="image-url-input" placeholder="Paste an image link...">
+                    <button class="submit-link-btn" id="url-submit-btn">Submit</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="side-panel-content">
+            <div class="side-panel-inner">
+
+                <!-- Header with icon and name -->
+                <div class="side-panel-header">
+                    <div class="side-panel-icon">
+                        <img src="fork-knife-logo.png" alt="" style="width: 80px; height: auto;">
+                    </div>
+                    <button class="side-panel-close" id="close-side-panel">&times;</button>
+                </div>
+                
+                <!-- Recipe Name -->
+                <div class="form-group name-group">
+                    <input type="text" class="form-input-name" id="recipe-name" placeholder="New page">
+                </div>
+
+                <!-- Properties Grid -->
+                <div class="properties-grid">
+                    <div class="property-row">
+                        <img src="flag-grey.png" class="property-icon" alt="">
+                        <label class="property-label">Cuisines</label>
+                        <input type="text" class="property-input" id="recipe-cuisines" placeholder="Empty">
+                    </div>
+                    <div class="property-row">
+                        <img src="hashtag.png" class="property-icon" alt="">
+                        <label class="property-label">Minutes</label>
+                        <input type="number" class="property-input" id="recipe-minutes" placeholder="Empty">
+                    </div>
+                    <div class="property-row">
+                        <img src="star.png" class="property-icon" alt="">
+                        <label class="property-label">Rating</label>
+                        <div class="rating-input">
+                            <span class="star-input" data-rating="1">☆</span>
+                            <span class="star-input" data-rating="2">☆</span>
+                            <span class="star-input" data-rating="3">☆</span>
+                            <span class="star-input" data-rating="4">☆</span>
+                            <span class="star-input" data-rating="5">☆</span>
+                        </div>
+                    </div>
+                    <div class="property-row">
+                        <img src="hashtag.png" class="property-icon" alt="">
+                        <label class="property-label">Servings</label>
+                        <input type="number" class="property-input" id="recipe-servings" placeholder="Empty">
+                    </div>
+                    <div class="property-row">
+                        <img src="clock.png" class="property-icon" alt="">
+                        <label class="property-label">Created time</label>
+                        <span class="property-value" id="recipe-created-time">Empty</span>
+                    </div>
+                </div>
+
+                <!-- Ingredients Section -->
+                <div class="panel-section">
+                    <h2 class="panel-section-title">Ingredients</h2>
+                    <textarea class="panel-textarea" id="recipe-ingredients" placeholder="Empty"></textarea>
+                </div>
+
+                <!-- Instructions Section -->
+                <div class="panel-section">
+                    <h2 class="panel-section-title">Instructions</h2>
+                    <textarea class="panel-textarea" id="recipe-instructions" placeholder="Empty"></textarea>
+                </div>
+
+                <!-- Save Button -->
+                <button class="save-recipe-btn" id="save-recipe-btn">Save Recipe</button>
+            </div>
+        </div>    
+    </div>
+
+    <div class="side-panel-overlay"></div>
+
+    <!-- FIREBASE -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-storage-compat.js"></script>
+
+    <script src="firebase-config.js"></script>
+    <script src="app.js"></script>
+
+    
+    <div id="macos-confirm-overlay" class="macos-confirm-overlay hidden">
+        <div class="macos-confirm-box">
+            <div class="macos-confirm-message" id="macos-confirm-message"></div>
+
+            <div class="macos-confirm-buttons">
+                <button class="macos-btn macos-cancel">Cancel</button>
+                <button class="macos-btn macos-ok">OK</button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
