@@ -196,12 +196,12 @@ body {
     border-bottom: 1px solid #e0e0e0;
 }
 
-/* HOVER — light grey */
+/* HOVER â€” light grey */
 .nav-link:hover {
     background: #f2f2f2;
 }
 
-/* ACTIVE (clicked) — blue */
+/* ACTIVE (clicked) â€” blue */
 .nav-link.active {
     background: #e7f0ff;
     color: #1976d2;
@@ -244,7 +244,6 @@ body {
     background: #e8f1ff;       /* soft blue */
     border-radius: 6px;        /* small radius */
     padding: 4px 8px;          /* subtle padding */
-    margin: -4px -8px;         /* negative margin to compensate for padding */
 }
 
 
@@ -317,6 +316,7 @@ body {
     flex: 1;
     min-width: 0;
     padding-top: 175px; /* Increased from 145px (added 30px to match the navigation margin increase) */
+    padding-bottom: 200px; /* Extra space at bottom for comfortable scrolling */
 }
 
 .content-header {
@@ -526,10 +526,6 @@ body {
     padding-bottom: 12px;
     border-bottom: 1px solid #e0e0e0; /* Lighter divider */
     margin-bottom: 12px;
-    margin-left: 0;
-    margin-right: 0;
-    padding-left: 0;
-    padding-right: 40px;
 }
 
 .header-controls {
@@ -684,10 +680,6 @@ body {
     padding-bottom: 12px;
     border-bottom: 1px solid #e0e0e0; /* Lighter divider */
     margin-bottom: 12px;
-    margin-left: 0;
-    margin-right: 0;
-    padding-left: 0;
-    padding-right: 40px;
 }
 
 .no-ingredients {
@@ -731,11 +723,21 @@ body {
     align-items: center;
     gap: 8px;
     padding: 8px 18px;
-    background: #f5f5f5;
+    background: white;
     border-radius: 20px;
     border: 1px solid #ddd;
     font-size: 14px;
     font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.ingredients-pill:hover {
+    background: #f9f9f9;
+}
+
+.ingredients-pill.active {
+    background: #f5f5f5;
 }
 
 .ingredients-cart-icon {
@@ -890,6 +892,183 @@ body {
     height: 18px;
     opacity: 0.7;
     transform: translateY(1.5px);  /* centers vertically */
+}
+
+.search-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
+}
+
+.search-input {
+    padding: 6px 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 14px;
+    outline: none;
+    width: 250px;
+    transition: all 0.3s ease;
+    transform-origin: right;
+}
+
+.search-input:focus {
+    border-color: #2196F3;
+}
+
+.search-input.hidden {
+    width: 0;
+    padding: 0;
+    border: none;
+    opacity: 0;
+    transform: translateX(20px);
+    pointer-events: none;
+}
+
+/* Shopping Sort Dropdown */
+.shopping-sort-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    min-width: 240px;
+    z-index: 1000;
+    padding: 8px 0;
+}
+
+.sort-dropdown-title {
+    padding: 8px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #999;
+    letter-spacing: 0.8px;
+}
+
+.sort-dropdown-item {
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #333;
+    transition: background 0.15s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sort-dropdown-item:hover {
+    background: #f5f5f5;
+}
+
+.sort-dropdown-item.active {
+    background: #e3f2fd;
+    color: #1976d2;
+    font-weight: 500;
+}
+
+.sort-order-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    color: #999;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.15s ease;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.sort-order-btn:hover {
+    background: #e0e0e0;
+    color: #666;
+}
+
+/* Sort Order Dropdown */
+.sort-order-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    min-width: 180px;
+    z-index: 1001;
+    padding: 8px 0;
+}
+
+.sort-order-option {
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #333;
+    transition: background 0.15s ease;
+}
+
+.sort-order-option:hover {
+    background: #f5f5f5;
+}
+
+.sort-order-option.active {
+    background: #e3f2fd;
+    color: #1976d2;
+    font-weight: 500;
+}
+
+.sort-order-divider {
+    height: 1px;
+    background: #e0e0e0;
+    margin: 8px 0;
+}
+
+.sort-order-delete {
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #d32f2f;
+    transition: background 0.15s ease;
+}
+
+.sort-order-delete:hover {
+    background: #ffebee;
+}
+
+/* Cuisines Sort Dropdown - adjust position to the right and make narrower */
+#cuisines-sort-dropdown {
+    right: -87px;
+    min-width: 180px;
+    width: 180px;
+}
+
+#cuisines-sort-order-dropdown {
+    right: -87px;
+    min-width: 180px;
+    width: 180px;
+}
+
+/* Recipes Sort Dropdown - adjust position to the right */
+#recipes-sort-dropdown {
+    right: -90px;
+}
+
+#recipes-sort-order-dropdown {
+    right: -90px;
+}
+
+/* Ingredients/Shopping Sort Dropdown - adjust position to the right */
+#shopping-sort-dropdown {
+    right: -90px;
+}
+
+#sort-order-dropdown {
+    right: -90px;
 }
 
 
@@ -1241,6 +1420,8 @@ Image Modal Overlay
 
 .side-panel-content {
     padding: 32px;
+    overflow-y: auto;
+    height: 100%;
 }
 
 .side-panel-header {
@@ -1252,6 +1433,205 @@ Image Modal Overlay
 
 .side-panel-icon {
     color: #333;
+}
+
+/* Ingredient Panel Layout */
+.ingredient-panel-layout {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+}
+
+.ingredient-panel-left {
+    flex: 1;
+    min-width: 0;
+}
+
+.ingredient-panel-right {
+    flex-shrink: 0;
+    width: 300px;
+    align-self: flex-start;
+}
+
+/* Ingredient Image Section */
+.ingredient-image-section {
+    position: relative;
+    width: 100%;
+    height: 300px;
+    background: #f5f5f5;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+}
+
+.ingredient-image-preview {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    height: auto;
+    min-height: 100%;
+    object-fit: contain;  /* â† SHOW FULL IMAGE, NO CROP */
+    display: none;
+    cursor: grab;
+    user-select: none;
+}
+
+.ingredient-image-preview.has-image {
+    display: block;
+}
+
+.ingredient-image-section.is-repositioning .ingredient-image-preview {
+    cursor: grab;
+    pointer-events: auto !important;
+}
+
+.ingredient-image-section.is-repositioning .ingredient-image-preview:active {
+    cursor: grabbing;
+}
+
+.ingredient-image-reposition-bar {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: 8px;
+    z-index: 150;
+}
+
+.ingredient-image-reposition-bar button {
+    padding: 6px 12px;
+    background: rgba(255,255,255,0.9);
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.ingredient-image-reposition-bar button:hover {
+    background: white;
+}
+
+.ingredient-image-save-position,
+.ingredient-image-cancel-position {
+    padding: 6px 10px;
+    font-size: 13px;
+    border-radius: 6px;
+    border: none;
+    background: rgba(255,255,255,0.9);
+    cursor: pointer;
+}
+
+.ingredient-image-save-position:hover,
+.ingredient-image-cancel-position:hover {
+    background: white;
+}
+
+.ingredient-image-placeholder {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.ingredient-image-section.has-image .ingredient-image-placeholder {
+    display: none !important;
+}
+
+.ingredient-image-upload-btn {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 12px 20px;
+    cursor: pointer;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    z-index: 10;
+    position: relative;
+}
+
+.ingredient-image-upload-btn:hover {
+    background: #f9f9f9;
+    border-color: #999;
+    color: #333;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.ingredient-image-upload-btn svg {
+    stroke: currentColor;
+}
+
+/* Ingredient Image Menu (three dots) */
+.ingredient-image-menu {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 20;
+}
+
+.ingredient-image-menu.hidden {
+    display: none;
+}
+
+.ingredient-image-menu-btn {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: 18px;
+    color: #666;
+    line-height: 1;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.ingredient-image-menu-btn:hover {
+    background: white;
+    border-color: #999;
+    color: #333;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.ingredient-image-menu-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-width: 120px;
+    overflow: hidden;
+    z-index: 100;
+}
+
+.ingredient-image-menu-dropdown.hidden {
+    display: none;
+}
+
+.ingredient-image-menu-item {
+    padding: 10px 16px;
+    font-size: 14px;
+    color: #333;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.ingredient-image-menu-item:hover {
+    background: #f5f5f5;
 }
 
 .side-panel-close {
@@ -1305,6 +1685,20 @@ Image Modal Overlay
     gap: 12px;
 }
 
+/* Special handling for cuisine row to allow tags container */
+#cuisine-row {
+    align-items: flex-start;
+    min-height: 32px;
+}
+
+#cuisine-row .property-icon {
+    margin-top: 10px;
+}
+
+#cuisine-row .property-label {
+    margin-top: 8px;
+}
+
 .property-icon {
     width: 16px;
     height: 16px;
@@ -1325,7 +1719,7 @@ Image Modal Overlay
     border: none;
     border-bottom: 1px solid transparent;
     font-size: 15px;
-    color: #666;
+    color: #1a1a1a;
     background: transparent;
 }
 
@@ -1335,12 +1729,77 @@ Image Modal Overlay
 }
 
 .property-input::placeholder {
-    color: #999;
+    color: #d0d0d0;
 }
 
 .property-value {
     font-size: 15px;
+    color: #d0d0d0;
+}
+
+/* Cuisine Tags Container */
+.cuisine-tags-container {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    opacity: 1;
+    transition: opacity 0.2s ease;
+    min-height: 24px;
+    padding: 2px 0;
+}
+
+.cuisine-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: #f5f5f5;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    font-size: 14px;
+    color: #333;
+}
+
+.cuisine-tag-remove {
+    background: none;
+    border: none;
     color: #999;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.cuisine-tag-remove:hover {
+    background: #e0e0e0;
+    color: #333;
+}
+
+.cuisine-add-btn {
+    background: transparent;
+    border: none;
+    color: #666;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 4px 8px;
+    line-height: 1;
+    border-radius: 4px;
+    transition: background 0.15s ease, color 0.15s ease;
+    flex-shrink: 0;
+}
+
+.cuisine-add-btn:hover {
+    background: #f0f0f0;
+    color: #333;
 }
 
 /* Panel Sections (Ingredients, Instructions) */
@@ -1375,7 +1834,7 @@ Image Modal Overlay
 }
 
 .panel-textarea::placeholder {
-    color: #999;
+    color: #d0d0d0;
 }
 
 .rating-input {
@@ -1492,6 +1951,8 @@ Image Modal Overlay
     gap: 14px;
     color: #8F8B87;
     font-size: 16px;
+    position: relative;
+    z-index: 10;
 }
 
 .panel-btn {
@@ -1559,7 +2020,7 @@ Image Modal Overlay
 }
 
 /* ============================================
-   FULLSCREEN PANEL — ALL CONTENT LEFT ALIGNED
+   FULLSCREEN PANEL â€” ALL CONTENT LEFT ALIGNED
 =============================================== */
 
 .side-panel.fullscreen .side-panel-content {
@@ -1680,13 +2141,13 @@ Image Modal Overlay
     display: block !important;
 }
 
-/* FINAL FIX — FULL-WIDTH NO-CROP, ALLOW VERTICAL DRAG */
+/* FINAL FIX â€” FULL-WIDTH NO-CROP, ALLOW VERTICAL DRAG */
 #cover-image-preview {
     position: absolute !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
 
-    /* FULL WIDTH — NEVER CROP LEFT/RIGHT */
+    /* FULL WIDTH â€” NEVER CROP LEFT/RIGHT */
     width: 100% !important;
     height: auto !important;
     max-width: none !important;
@@ -1694,7 +2155,7 @@ Image Modal Overlay
     /* ALLOW vertical dragging */
     min-height: 100% !important;
 
-    /* NO SIDE CROP — USE CONTAIN */
+    /* NO SIDE CROP â€” USE CONTAIN */
     object-fit: contain !important;
 
     /* Allow overflow */
@@ -1713,7 +2174,7 @@ Image Modal Overlay
 
 .recipe-card-image {
     width: 100%;
-    height: 150px;               /* ← FIX: uniform card height */
+    height: 150px;               /* â† FIX: uniform card height */
     overflow: hidden;
     background: #f5f5f5;
     border-bottom: 1px solid #eee;
@@ -1722,7 +2183,7 @@ Image Modal Overlay
 .recipe-card-image img {
     width: 100%;
     height: 100%;
-    object-fit: cover;           /* ← IMPORTANT */
+    object-fit: cover;           /* â† IMPORTANT */
     display: block;
 }
 
@@ -1736,6 +2197,14 @@ Image Modal Overlay
     gap: 20px;
     justify-content: start; /* aligns left under divider */
     padding: 20px 0 40px;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+    min-height: 200px; /* Prevent layout shift */
+}
+
+.recipe-grid.loading {
+    opacity: 0;
+    pointer-events: none;
 }
 
 
@@ -1797,7 +2266,7 @@ Image Modal Overlay
     display: flex;
     align-items: flex-start !important;
     gap: 3px;
-    width: 100%;            /* ← necessary */
+    width: 100%;            /* â† necessary */
     justify-content: flex-start;
 }
 
@@ -1806,13 +2275,13 @@ Image Modal Overlay
     width: 28px;
     display: block;              /* FIX 1 */
     object-fit: contain;         /* FIX 2 */
-    margin-left: -5px !important; /* FIX 3 — VISUAL ALIGNMENT */
+    margin-left: -5px !important; /* FIX 3 â€” VISUAL ALIGNMENT */
 }
 
 
 
 .card-rating {
-    width: 100%;           /* ← COMPLETE FIX */
+    width: 100%;           /* â† COMPLETE FIX */
     display: flex;
     justify-content: flex-start;
 }
@@ -1820,7 +2289,7 @@ Image Modal Overlay
 
 
 .card-time {
-    width: 100%;          /* ← IMPORTANT */
+    width: 100%;          /* â† IMPORTANT */
     display: flex;
     justify-content: flex-start;
 }
@@ -1910,6 +2379,13 @@ Image Modal Overlay
     opacity: 0.7;
 }
 
+/* Make star icon smaller in menu */
+.card-menu-item img[src*="star"] {
+    width: 10px;
+    height: 10px;
+    margin-left: 4px;
+}
+
 .card-menu-item.delete .card-menu-icon {
     opacity: 0.8;
 }
@@ -1928,7 +2404,7 @@ Image Modal Overlay
 }
 
 
-/* Card reposition mode – blue outline just like Notion */
+/* Card reposition mode â€“ blue outline just like Notion */
 .recipe-card.is-repositioning {
     box-shadow: 0 0 0 3px #4c8aff !important;
 }
@@ -1939,7 +2415,7 @@ Image Modal Overlay
 }
 
 
-/* Top-right Save/Cancel bar — same position as hover controls */
+/* Top-right Save/Cancel bar â€” same position as hover controls */
 .card-reposition-bar {
     position: absolute;
     top: 8px;
@@ -2065,6 +2541,8 @@ Image Modal Overlay
 
 .cuisines-list {
     margin-top: 10px;
+    opacity: 1;
+    transition: opacity 0.2s ease;
 }
 
 
@@ -2077,12 +2555,33 @@ Image Modal Overlay
     width: 100%;
     padding: -2px 0;
     position: relative;
+    cursor: grab;
+    user-select: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.cuisine-row:active {
+    cursor: grabbing;
+}
+
+.cuisine-row.dragging {
+    opacity: 1;
+    transform: scale(1.02);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    z-index: 100;
+    background-color: white;
+    border-radius: 8px;
+}
+
+.cuisine-row.just-dropped {
+    background-color: #e3f2fd;
+    transition: background-color 0.3s ease;
 }
 
 /* White background (dots area) */
 .cuisine-dots {
-    min-width: 25px;      /* ← WIDER (was 32px) */
-    height: 32px;         /* ← SAME HEIGHT AS cuisine-main */
+    min-width: 25px;      /* â† WIDER (was 32px) */
+    height: 32px;         /* â† SAME HEIGHT AS cuisine-main */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2095,7 +2594,7 @@ Image Modal Overlay
 
 .cuisine-dots {
     opacity: 0;
-    pointer-events: none;   /* can't click when hidden */
+    pointer-events: auto;   /* CHANGED: allow dragging even when invisible */
     transition: opacity .15s ease;
 }
 
@@ -2142,23 +2641,343 @@ Image Modal Overlay
     font-size: 15px;
     opacity: 0.9;
     margin-left: -4px;     /* pulls number closer to dots */
+    min-width: 10px;        /* Fixed width to align icons consistently */
+    text-align: right;
 }
 
-/* Icon */
-.cuisine-row-icon {
-    width: 22px;
-    opacity: 0.9;
-    margin-left: 4px;    /* subtle tightening */
-}
+/* Icon - styles defined below */
 
 
-/* Editable text — no blue border */
+/* Editable text â€” no blue border */
 .cuisine-name-input {
     font-size: 17px;
     border: none;
     background: transparent;
     padding: 2px 4px;
     width: auto;
+    color: #333;
+}
+
+.cuisine-name-input[readonly] {
+    color: #333;
+    cursor: default;
+}
+
+.cuisine-row-icon {
+    cursor: pointer;
+    transition: all 0.15s ease;
+    padding: 2px;
+    border-radius: 6px;
+    width: 26px;
+    height: 26px;
+    object-fit: contain;
+    object-position: center;
+    pointer-events: auto;
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0;
+    margin-left: 4px;
+    opacity: 0.9;
+    box-sizing: border-box;
+}
+
+/* Make cuisine.png icon larger to match emoji size */
+.cuisine-row-icon[src*="cuisine.png"] {
+    width: 22px !important;
+    height: 22px !important;
+    padding: 0px; /* No padding for minimal grey area */
+}
+
+/* Increase padding and size for star-black.png icon (Favorites) */
+.cuisine-row-icon[src*="star-black.png"] {
+    padding: 4px !important;
+    width: 32px !important;
+    height: 32px !important;
+    margin-left: 4px !important; /* Move icon to the left, pushing text to the right */
+}
+
+/* Increase padding and size for other image icons (not cuisine.png) */
+.cuisine-row-icon:not([src*="cuisine.png"]) {
+    padding: 4px;
+    width: 22px !important;
+    height: 22px !important;
+}
+
+.cuisine-row-icon:hover {
+    background: #e0e0e0;
+}
+
+.cuisine-row-icon-emoji {
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 16px;
+    padding: 5px;
+    border-radius: 6px;
+    font-size: 18px !important;
+    width: 22px;
+    height: 22px;
+    text-align: center;
+    pointer-events: auto;
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0;
+    margin-left: 4px;
+    box-sizing: border-box;
+}
+
+.cuisine-row-icon-emoji:hover {
+    background: #e0e0e0;
+}
+
+.cuisine-row-icon-svg {
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border-radius: 6px;
+    width: 25px;
+    height: 25px;
+    pointer-events: auto;
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0;
+    margin-left: 4px;
+    box-sizing: border-box;
+}
+
+.cuisine-row-icon-svg:hover {
+    background: #e0e0e0;
+}
+
+.cuisine-row-icon-svg svg {
+    width: 22px;
+    height: 22px;
+}
+
+.cuisine-row-icon-svg svg {
+    stroke: #333;
+    fill: none;
+}
+
+/* ================================
+   ICON PICKER MODAL
+=============================== */
+.icon-picker-modal {
+    position: fixed;
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    width: 400px;
+    max-height: 500px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.icon-picker-modal.hidden {
+    display: none;
+}
+
+.icon-picker-modal.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.icon-picker-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.icon-picker-tabs {
+    display: flex;
+    gap: 8px;
+}
+
+.icon-picker-tab {
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    font-size: 14px;
+    color: #666;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s ease;
+}
+
+.icon-picker-tab:hover {
+    color: #333;
+}
+
+.icon-picker-tab.active {
+    color: #1976d2;
+    border-bottom-color: #1976d2;
+}
+
+.icon-picker-header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.icon-picker-remove {
+    border: none;
+    background: transparent;
+    font-size: 14px;
+    color: #666;
+    cursor: pointer;
+    padding: 8px 16px;
+    border-radius: 4px;
+    transition: all 0.15s ease;
+}
+
+.icon-picker-remove:hover {
+    background: #f0f0f0;
+}
+
+.icon-picker-close {
+    border: none;
+    background: transparent;
+    font-size: 18px;
+    color: #666;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: background 0.15s ease;
+    line-height: 1;
+}
+
+.icon-picker-close:hover {
+    background: #f0f0f0;
+}
+
+.icon-picker-search {
+    padding: 12px 20px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.icon-picker-search-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s ease;
+}
+
+.icon-picker-search-input:focus {
+    border-color: #1976d2;
+}
+
+.icon-picker-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.icon-picker-tab-content {
+    display: none;
+}
+
+.icon-picker-tab-content.active {
+    display: block;
+}
+
+.icon-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(32px, 1fr));
+    gap: 4px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.icon-picker-item {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.15s ease;
+    border: 1px solid transparent;
+    padding: 4px;
+    box-sizing: border-box;
+}
+
+.icon-picker-item:hover {
+    background: #f0f0f0;
+    border-color: #e0e0e0;
+}
+
+.icon-picker-item svg {
+    width: 20px !important;
+    height: 20px !important;
+    max-width: 20px !important;
+    max-height: 20px !important;
+    stroke: #1a1a1a;
+    fill: #1a1a1a;
+    stroke-width: 1;
+    flex-shrink: 0;
+}
+
+.icon-picker-item img {
+    width: 18px !important;
+    height: 18px !important;
+    max-width: 18px !important;
+    max-height: 18px !important;
+    min-width: 18px !important;
+    min-height: 18px !important;
+    object-fit: contain;
+    object-position: center;
+    display: block;
+    flex-shrink: 0;
+}
+
+.icon-picker-item.emoji {
+    font-size: 20px;
+}
+
+.icon-picker-upload-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+}
+
+.icon-picker-upload-btn {
+    padding: 12px 24px;
+    background: #1976d2;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.icon-picker-upload-btn:hover {
+    background: #1565c0;
+}
+
+.icon-picker-upload-text {
+    margin-top: 12px;
+    color: #666;
+    font-size: 14px;
 }
 
 .cuisine-name-input:focus {
@@ -2171,7 +2990,7 @@ Image Modal Overlay
 ------------------------------ */
 .cuisine-edit-btn {
     position: absolute;
-    right: 12px;      /* INSIDE the pill */
+    right: 0px;      /* INSIDE the pill - moved right */
     top: 50%;
     transform: translateY(-50%);
     width: 27px;
@@ -2250,17 +3069,1049 @@ Image Modal Overlay
 /* Blue line indicator (like Notion) */
 .cuisine-drop-indicator {
     height: 3px;
-    background: #3b82f6;
-    border-radius: 3px;
+    background: #2196F3;
+    border-radius: 2px;
     width: 100%;
-    margin: 2px 0 4px 58px; /* align under main pill, not under dots */
+    margin: 0;
     display: none;
+    transition: none;
 }
 
 .cuisine-row.drag-over .cuisine-drop-indicator {
     display: block;
 }
-.cuisine-row.dragging {
-    opacity: 0 !important;
-    visibility: hidden !important;
+/* ========================================
+   INGREDIENTS GROUPS & TABLES
+======================================== */
+
+.ingredients-groups {
+    margin-top: 20px;
+}
+
+.ingredient-group {
+    margin-bottom: 12px;
+    position: relative;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ingredient-group.dragging {
+    opacity: 1;
+    transform: scale(1.02);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    z-index: 100;
+}
+
+.ingredient-group.dragging .group-header {
+    background: white;
+    border: 1px solid #e0e0e0;
+}
+
+.group-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: #f5f5f5;
+    border-radius: 6px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s ease;
+}
+
+.group-header:hover {
+    background: #ebebeb;
+}
+
+.group-drag-handle {
+    width: 20px;
+    height: 20px;
+    cursor: grab;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 4px;
+}
+
+.group-drag-spacer {
+    width: 20px;
+    height: 20px;
+    margin-right: 4px;
+}
+
+.group-header:hover .group-drag-handle {
+    opacity: 0.5;
+}
+
+.group-drag-handle:hover {
+    opacity: 0.8 !important;
+}
+
+.group-drag-handle:active {
+    cursor: grabbing;
+}
+
+.group-drag-handle img {
+    width: 16px;
+    height: 16px;
+}
+
+.group-drop-indicator {
+    height: 3px;
+    background: #2196F3;
+    margin: 0;
+    border-radius: 2px;
+    display: none;
+}
+
+.group-drop-indicator.show {
+    display: block;
+}
+
+.ingredient-group.drag-over-top .group-drop-indicator-top {
+    display: block;
+}
+
+.ingredient-group.drag-over-bottom .group-drop-indicator-bottom {
+    display: block;
+}
+
+.group-arrow {
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid #666;
+    transform: rotate(-90deg);
+    transition: transform 0.2s ease;
+}
+
+.group-header.open .group-arrow {
+    transform: rotate(0deg);
+}
+
+.group-name {
+    font-size: 15px;
+    font-weight: 500;
+    color: #333;
+}
+
+.group-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    position: relative;
+}
+
+.group-header:hover .group-actions {
+    opacity: 1;
+}
+
+.group-menu-btn {
+    padding: 2px 6px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    color: #666;
+}
+
+.group-menu-btn:hover {
+    color: #000;
+}
+
+.group-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    min-width: 140px;
+    z-index: 1000;
+}
+
+.group-menu-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #333;
+}
+
+.group-menu-item:hover {
+    background: #f5f5f5;
+}
+
+.group-menu-item.delete-group {
+    color: #e53935;
+}
+
+.group-menu-item.delete-group:hover {
+    background: #ffebee;
+}
+
+.group-content {
+    display: none;
+    margin-top: 8px;
+    padding: 0 12px;
+}
+
+.group-content.open {
+    display: block;
+}
+
+/* Ingredients Table */
+.ingredients-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.ingredients-table thead {
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.ingredients-table th {
+    text-align: left;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #666;
+}
+
+.ingredients-table td {
+    padding: 12px 12px 8px 12px;
+    vertical-align: middle;
+}
+
+.ingredients-table tr:hover {
+    background: #fafafa;
+}
+
+.ingredients-table td.ingredient-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ingredient-name-cell .ingredient-icon {
+    align-self: center;
+}
+
+.ingredient-name-cell span {
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.ingredient-name-cell div {
+    line-height: 1;
+}
+
+
+.ingredient-icon {
+    width: 16px;
+    height: 16px;
+    opacity: 0.6;
+    flex-shrink: 0;
+    display: block;
+    margin-top: 10px;
+}
+
+.to-buy-cell {
+    text-align: left;
+    vertical-align: middle;
+}
+
+.to-buy-checkbox-table {
+    margin-left: 2px;
+    vertical-align: middle;
+}
+
+
+.to-buy-checkbox-table {
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.add-ingredient-row {
+    color: #999;
+    font-size: 14px;
+    cursor: pointer;
+    transition: color 0.2s ease;
+    margin-top: 24px;
+    padding-left: 16px;
+}
+
+.add-ingredient-row:hover {
+    color: #333;
+}
+
+/* Download Shopping List Button */
+.download-btn-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 48px;
+}
+
+/* Shopping List Modal */
+.shopping-list-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.shopping-list-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    border-radius: 12px;
+    padding: 0;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    z-index: 10001;
+}
+
+.shopping-list-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.shopping-list-modal-header h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: #1a1a1a;
+}
+
+.shopping-list-modal-close {
+    background: none;
+    border: none;
+    font-size: 28px;
+    color: #999;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: background 0.2s ease;
+}
+
+.shopping-list-modal-close:hover {
+    background: #f5f5f5;
+    color: #333;
+}
+
+.shopping-list-modal-content {
+    padding: 24px;
+}
+
+.background-options {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.background-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.background-option:hover {
+    border-color: #4285f4;
+    background: #f8f9ff;
+}
+
+.background-option.selected {
+    border-color: #4285f4;
+    background: #e8f0fe;
+}
+
+.background-preview {
+    width: 100%;
+    height: 120px;
+    border-radius: 4px;
+    border: 1px solid #e0e0e0;
+    object-fit: cover;
+    display: block;
+}
+
+.background-option span {
+    font-size: 12px;
+    color: #666;
+    font-weight: 500;
+    margin-top: 8px;
+}
+
+.background-option.selected span {
+    color: #4285f4;
+    font-weight: 600;
+}
+
+.shopping-list-download-btn {
+    width: 100%;
+    padding: 12px 24px;
+    background: #4285f4;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.shopping-list-download-btn:hover {
+    background: #357ae8;
+}
+
+.shopping-list-download-btn:active {
+    background: #2d6cd9;
+}
+
+.download-shopping-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: #f5f5f5;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    color: #333;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.download-shopping-btn:hover {
+    background: #ebebeb;
+    border-color: #d0d0d0;
+}
+
+.download-shopping-btn .btn-icon {
+    width: 16px;
+    height: 16px;
+    opacity: 0.7;
+}
+
+/* New Group */
+.new-group-container {
+    margin-top: 16px;
+    padding-left: 12px;
+}
+
+.new-group-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: transparent;
+    border: none;
+    color: #999;
+    font-size: 14px;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.new-group-btn:hover {
+    color: #333;
+}
+
+.new-group-input-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.new-group-input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.done-btn {
+    padding: 8px 16px;
+    background: #2196F3;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.done-btn:hover {
+    background: #1976D2;
+}
+
+/* Ingredient Side Panel - reuse recipe panel styles but add specific overrides */
+#ingredient-side-panel .property-icon {
+    width: 16px;
+    height: 16px;
+    opacity: 0.6;
+}
+
+#ingredient-side-panel .to-buy-checkbox {
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+}
+
+#ingredient-side-panel .checkbox-display {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+/* ========================================
+   INGREDIENT SIDE PANEL SPECIFIC STYLES
+======================================== */
+
+#ingredient-side-panel .panel-logo-section {
+    text-align: center;
+    padding: 20px 0;
+}
+
+#ingredient-side-panel .panel-logo {
+    width: 80px;
+    height: auto;
+}
+
+#ingredient-side-panel .panel-property-icon-text {
+    display: inline-block;
+    width: 16px;
+    text-align: center;
+    font-size: 16px;
+    opacity: 0.6;
+}
+
+#ingredient-side-panel .panel-checkbox-label {
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    cursor: pointer;
+}
+
+#ingredient-side-panel .panel-property-checkbox {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+#ingredient-side-panel .panel-checkbox-input {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+.add-property-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    margin-top: 8px;
+    background: transparent;
+    border: none;
+    color: #999;
+    font-size: 14px;
+    cursor: pointer;
+    transition: color 0.2s ease, background 0.2s ease;
+    border-radius: 4px;
+}
+
+.add-property-btn:hover {
+    color: #666;
+    background: #f5f5f5;
+}
+
+/* ========================================
+   INGREDIENT PANEL - RELATIONS SECTION
+======================================== */
+
+.relations-section {
+    margin-top: 16px;
+    padding-top: 12px;
+    padding-bottom: 32px;
+    border-top: none;
+    position: relative;
+}
+
+/* Extend the divider line across both panels */
+.ingredient-panel-layout .relations-section::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: calc(-300px - 24px);
+    top: 0;
+    height: 1px;
+    background: #e0e0e0;
+    z-index: 1;
+}
+
+.relations-header {
+    font-size: 13px;
+    font-weight: 600;
+    color: #888;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.relation-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #f9f9f9;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    font-size: 14px;
+    color: #666;
+}
+
+.relation-item:hover {
+    background: #f0f0f0;
+}
+
+.relation-icon {
+    width: 18px;
+    height: 18px;
+    opacity: 0.6;
+}
+
+/* Recipe Dropdown for Relations */
+.recipe-dropdown-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 10000;
+    display: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.recipe-dropdown-overlay.active {
+    display: block;
+    opacity: 1;
+}
+
+.recipe-dropdown {
+    position: fixed;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    max-height: 400px;
+    width: 500px;
+    overflow: hidden;
+    display: none;
+    z-index: 10001;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.recipe-dropdown.active {
+    display: block;
+    opacity: 1;
+}
+
+.recipe-dropdown-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.recipe-dropdown-search {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 14px;
+    color: #999;
+}
+
+.recipe-dropdown-badge {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #666;
+}
+
+.recipe-dropdown-list {
+    max-height: 350px;
+    overflow-y: auto;
+}
+
+.recipe-dropdown-section {
+    padding: 8px 0;
+}
+
+.recipe-dropdown-section-title {
+    padding: 8px 16px;
+    font-size: 12px;
+    color: #999;
+    font-weight: 500;
+}
+
+.recipe-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.recipe-dropdown-item:hover {
+    background: #f5f5f5;
+}
+
+.recipe-dropdown-item-icon {
+    width: 18px;
+    height: 18px;
+}
+
+.recipe-dropdown-item-name {
+    flex: 1;
+    font-size: 14px;
+    color: #333;
+}
+
+.recipe-dropdown-item-add {
+    width: 24px;
+    height: 24px;
+    border: 1.5px solid #ddd;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: #999;
+    transition: all 0.2s ease;
+}
+
+.recipe-dropdown-item:hover .recipe-dropdown-item-add {
+    border-color: #2196F3;
+    color: #2196F3;
+}
+
+/* Ingredient Row Menu */
+.ingredient-menu-btn {
+    background: none;
+    border: none;
+    font-size: 18px;
+    color: #999;
+    cursor: pointer;
+    padding: 4px 8px;
+    transition: color 0.2s ease;
+}
+
+.ingredient-menu-btn:hover {
+    color: #333;
+}
+
+.ingredient-menu {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+
+    min-width: unset;      /* REMOVE forced width */
+    width: fit-content;    /* shrink to content */
+}
+
+.ingredient-menu.hidden {
+    display: none;
+}
+
+.ingredient-menu-item {
+    padding: 6px 12px;          /* tighter padding */
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s ease;
+
+    text-align: center;         /* center the text */
+    white-space: nowrap;        /* prevent stretching */
+}
+
+.ingredient-menu-item:hover {
+    background: #f5f5f5;
+}
+
+.ingredient-menu-item.delete-ingredient {
+    color: #d32f2f;
+}
+
+.ingredient-menu-item.delete-ingredient:hover {
+    background: #ffebee;
+}
+
+.ingredient-menu-item.edit-ingredient {
+    color: #333;
+}
+
+.ingredient-menu-item.edit-ingredient:hover {
+    background: #f5f5f5;
+}
+
+.ingredient-new-row td {
+    padding: 12px;
+    color: #999;
+    cursor: pointer;
+    border-top: 1px solid #eee;
+}
+
+.ingredient-new-row td:hover {
+    color: #333;
+    background: #fafafa;
+}
+
+.ingredient-row > div {
+    line-height: 1.4;
+}
+
+.ingredients-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.ingredients-table thead {
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.ingredients-table tbody tr {
+    border-bottom: 1px solid #eee;
+}
+
+/* REMOVE line under last ingredient */
+.ingredients-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+/* New page owns the divider */
+.ingredient-new-row td {
+    padding: 12px;
+    color: #999;
+    cursor: pointer;
+    border-top: 1px solid #eee;
+}
+
+.ingredient-new-row td:hover {
+    color: #333;
+    background: #fafafa;
+}
+
+#shopping-list.hidden {
+    display: none !important;
+}
+
+#shopping-list.loading {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#shopping-list {
+    opacity: 1;
+    transition: opacity 0.25s ease;
+}
+
+#shopping-tbody {
+    opacity: 1;
+    transition: opacity 0.2s ease;
+}
+
+/* Keep table header stable during tbody transitions */
+#shopping-list .ingredients-table thead {
+    position: relative;
+    z-index: 1;
+}
+
+#shopping-list .ingredients-table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+#shopping-list.preload {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* ========================================
+   INGREDIENT VIEW TRANSITIONS
+======================================== */
+/* Container for ingredients section to maintain layout space */
+#ingredients {
+    position: relative;
+}
+
+/* Each view container - visible state */
+.view-container {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+    transition:
+        opacity 0.25s ease,
+        transform 0.25s ease;
+}
+
+/* Hidden state - NO transition, instant hide */
+.view-container.hidden-view {
+    opacity: 0;
+    transform: translateY(0);
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    transition: none; /* Instant hide, no fade out */
+}
+
+.add-ingredient-row {
+    opacity: inherit;
+    transform: inherit;
+    transition: none;
+}
+
+.ingredients-content {
+    background: white;
+    border-radius: 8px;
+    padding: 16px 0;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.04);
+}
+
+.ingredients-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+}
+
+.ingredients-table thead th {
+    padding: 12px 16px;
+    font-weight: 500;
+}
+
+.ingredients-table tbody td {
+    padding: 12px 16px;
+    vertical-align: middle;
+}
+
+/* ========================================
+   INGREDIENT UPLOAD LOADING OVERLAY
+======================================== */
+.upload-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    animation: fadeIn 0.2s ease;
+}
+
+.upload-loading-content {
+    background: white;
+    padding: 40px;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    max-width: 400px;
+}
+
+.upload-loading-content p {
+    margin: 20px 0 0 0;
+    font-size: 16px;
+    color: #333;
+}
+
+.upload-spinner {
+    width: 50px;
+    height: 50px;
+    margin: 0 auto;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* ========================================
+   UPLOAD SUCCESS MESSAGE
+======================================== */
+.upload-success-message {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #28a745;
+    color: white;
+    padding: 16px 32px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 10001;
+    font-size: 15px;
+    font-weight: 500;
+    opacity: 0;
+    transition: opacity 0.3s ease;
 }
