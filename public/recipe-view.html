@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Parser Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .upload-area:hover {
+            background: #f8f9ff;
+            border-color: #764ba2;
+        }
+        .upload-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        .results {
+            margin-top: 30px;
+        }
+        .result-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .result-section h3 {
+            margin-top: 0;
+            color: #667eea;
+        }
+        .result-section pre {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            margin: 0 auto 20px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .image-preview {
+            max-width: 100%;
+            max-height: 400px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🍳 Recipe Parser Test</h1>
+        <p class="subtitle">Test the intelligent recipe parser with images, PDFs, or text files</p>
+        
+        <div class="upload-area" id="uploadArea">
+            <input type="file" id="fileInput" accept=".pdf,.png,.jpg,.jpeg,.heic,.txt" style="display: none;">
+            <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                📤 Choose File
+            </button>
+            <p>Supports: Images (PNG, JPG, HEIC), PDF, and Text files</p>
+        </div>
+        
+        <div id="results" class="results" style="display: none;"></div>
+    </div>
+
+    <!-- Load Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+    
+    <script>
+        // Set PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        
+        document.getElementById('fileInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.style.display = 'block';
+            resultsDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>Processing ' + file.name + '...</p></div>';
+            
+            try {
+                const result = await processFile(file);
+                displayResults(result, file.name);
+            } catch (error) {
+                resultsDiv.innerHTML = '<div class="result-section"><h3>❌ Error</h3><pre>' + error.message + '</pre></div>';
+            }
+        });
+        
+        async function processFile(file) {
+            const fileType = file.type.toLowerCase();
+            const fileName = file.name.toLowerCase();
+            
+            let text = '';
+            let imageData = null;
+            
+            if (fileType.includes('image') || fileName.endsWith('.heic') || fileName.endsWith('.png') || fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) {
+                // Handle HEIC conversion
+                if (fileName.endsWith('.heic')) {
+                    const convertedBlob = await heic2any({
+                        blob: file,
+                        toType: 'image/jpeg',
+                        quality: 0.9
+                    });
+                    file = new File([convertedBlob], fileName.replace('.heic', '.jpg'), { type: 'image/jpeg' });
+                }
+                
+                // OCR
+                const result = await performOCR(file);
+                text = result.text;
+                imageData = result.imageData;
+                
+            } else if (fileType.includes('pdf') || fileName.endsWith('.pdf')) {
+                text = await extractTextFromPDF(file);
+                
+            } else if (fileType.includes('text') || fileName.endsWith('.txt')) {
+                text = await file.text();
+            }
+            
+            const parsed = parseRecipeText(text);
+            return { ...parsed, imageData, rawText: text };
+        }
+        
+        async function performOCR(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const { data: { text } } = await Tesseract.recognize(
+                            e.target.result,
+                            'eng',
+                            { logger: info => console.log(info) }
+                        );
+                        resolve({ text, imageData: e.target.result });
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+        
+        async function extractTextFromPDF(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const typedArray = new Uint8Array(e.target.result);
+                        const pdf = await pdfjsLib.getDocument({ data: typedArray }).promise;
+                        let fullText = '';
+                        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                            const page = await pdf.getPage(pageNum);
+                            const textContent = await page.getTextContent();
+                            const pageText = textContent.items.map(item => item.str).join(' ');
+                            fullText += pageText + '\n';
+                        }
+                        resolve(fullText);
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            });
+        }
+        
+                function parseRecipeText(text) {
+            console.log('Raw text length:', text.length);
+            text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+            // Also normalize multiple spaces
+            text = text.replace(/\s{2,}/g, ' ');
+            
+            const recipe = {
+                title: extractTitleRobust(text),
+                ingredients: '',
+                instructions: '',
+                servings: 0,
+                minutes: 0
+            };
+            
+            const servingsMatch = text.match(/(?:servings?|serves|yield|makes)[:\s]*(\d+)/i);
+            if (servingsMatch) recipe.servings = parseInt(servingsMatch[1]);
+            
+            recipe.minutes = extractTimeRobust(text);
+            
+            const sections = identifySectionsRobust(text);
+            recipe.ingredients = sections.ingredients;
+            recipe.instructions = sections.instructions;
+            
+            console.log('Parsed recipe:', recipe);
+            return recipe;
+        }
+        
+        function extractTitleRobust(text) {
+            // Try to find title before "This easy" or before metadata keywords
+            const beforeMetadata = text.split(/\s+(course|cuisine|keyword|prep time|cook time|total time|servings|calories|author)\s*:/i)[0];
+            
+            // Get first substantial word/phrase from that
+            const titleMatch = beforeMetadata.match(/^([^.!?]{3,80}?)(?:\s+this|\s+is|\s+are|$)/i);
+            if (titleMatch) {
+                const title = titleMatch[1].trim();
+                if (title.length >= 3 && title.length < 100 && !title.match(/^(ingredients?|instructions?|method)$/i)) {
+                    return title;
+                }
+            }
+            
+            return 'Untitled Recipe';
+        }
+        
+        function extractTimeRobust(text) {
+            const totalTimeMatch = text.match(/total\s+time[:\s]*(\d+)\s*(?:min|minute)/i);
+            if (totalTimeMatch) return parseInt(totalTimeMatch[1]);
+            
+            const prepMatch = text.match(/prep\s+time[:\s]*(\d+)\s*(?:min|minute)/i);
+            const cookMatch = text.match(/cook\s+time[:\s]*(\d+)\s*(?:min|minute)/i);
+            if (prepMatch && cookMatch) return parseInt(prepMatch[1]) + parseInt(cookMatch[1]);
+            if (cookMatch) return parseInt(cookMatch[1]);
+            if (prepMatch) return parseInt(prepMatch[1]);
+            
+            return 0;
+        }
+        
+        function identifySectionsRobust(text) {
+            // Find ingredients section - look for "Ingredients" keyword
+            const ingredientsMatch = text.match(/ingredients\s*:?\s*(.*?)(?=instructions|directions|method|steps|preparation|$)/is);
+            let ingredients = '';
+            if (ingredientsMatch) {
+                // Extract the ingredients text
+                let ingText = ingredientsMatch[1];
+                
+                // Find lines that look like ingredients (have measurements)
+                const lines = ingText.split(/(?:\n|(?=[0-9]+\s*(?:cup|tbsp|tsp|teaspoon|tablespoon|pound|lb|oz|ounce|g|kg|ml)))/);
+                const ingredientLines = [];
+                
+                for (const line of lines) {
+                    const trimmed = line.trim();
+                    // Skip subsection headers but include them
+                    if (trimmed.match(/^(crumble topping|filling|sauce|dressing|base|topping|glaze|frosting)$/i)) {
+                        ingredientLines.push('\n' + trimmed);
+                        continue;
+                    }
+                    // Keep lines with measurements or that start with numbers/bullets
+                    if (trimmed.match(/^[\d•\-*☆★]/) || trimmed.match(/\d+\s*(cup|tbsp|tsp|teaspoon|tablespoon|pound|lb|oz|ounce|g|kg|ml)/i)) {
+                        ingredientLines.push(trimmed);
+                    }
+                }
+                
+                ingredients = ingredientLines.join('\n');
+            }
+            
+            // Find instructions section
+            const instructionsMatch = text.match(/(?:instructions|directions|method|steps|preparation)\s*:?\s*(.*?)$/is);
+            let instructions = '';
+            if (instructionsMatch) {
+                let instText = instructionsMatch[1];
+                
+                // Find numbered steps
+                const steps = instText.match(/\d+\.\s*[^]+?(?=\d+\.|$)/g);
+                if (steps) {
+                    instructions = steps.map(s => s.trim()).join('\n\n');
+                }
+            }
+            
+            return {
+                ingredients: ingredients || 'No ingredients found',
+                instructions: instructions || 'No instructions found'
+            };
+        }
+
+        function detectSectionsByPattern(lines) {
+            let ingredientStart = -1, ingredientEnd = -1, instructionStart = -1;
+            let inIngredients = false, ingredientCount = 0, numberedStepCount = 0;
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                
+                const isIngredient = /^[\d/]+\s+(cup|tbsp|tsp|tablespoon|teaspoon|lb|pound|oz|ounce|g|gram|ml|kg)/i.test(line) ||
+                                   /^[•\-*]\s*[\d/]+\s+/i.test(line) ||
+                                   /^[☆★✰✭]\s*/i.test(line);
+                const isNumberedStep = /^\d+[\.)]\s+/.test(line);
+                
+                if (isIngredient && !inIngredients && numberedStepCount === 0) {
+                    if (ingredientStart === -1) ingredientStart = i;
+                    inIngredients = true;
+                    ingredientCount++;
+                } else if (inIngredients && !isIngredient && ingredientCount > 2) {
+                    if (isNumberedStep) {
+                        ingredientEnd = i;
+                        instructionStart = i;
+                        inIngredients = false;
+                    }
+                }
+                
+                if (isNumberedStep) {
+                    numberedStepCount++;
+                    if (instructionStart === -1) {
+                        instructionStart = i;
+                        if (ingredientStart !== -1 && ingredientEnd === -1) ingredientEnd = i;
+                    }
+                }
+            }
+            
+            return { ingredientStart, ingredientEnd, instructionStart };
+        }
+        
+        function displayResults(result, fileName) {
+            const resultsDiv = document.getElementById('results');
+            let html = '<h2>✅ Parsing Results for: ' + fileName + '</h2>';
+            
+            if (result.imageData) {
+                html += '<img src="' + result.imageData + '" class="image-preview" alt="Uploaded image">';
+            }
+            
+            html += '<div class="result-section"><h3>📝 Title</h3><pre>' + result.title + '</pre></div>';
+            html += '<div class="result-section"><h3>👥 Servings</h3><pre>' + (result.servings || 'Not found') + '</pre></div>';
+            html += '<div class="result-section"><h3>⏱️ Time (minutes)</h3><pre>' + (result.minutes || 'Not found') + '</pre></div>';
+            html += '<div class="result-section"><h3>🥗 Ingredients</h3><pre>' + result.ingredients + '</pre></div>';
+            html += '<div class="result-section"><h3>👨‍🍳 Instructions</h3><pre>' + result.instructions + '</pre></div>';
+            
+            if (result.rawText) {
+                html += '<div class="result-section"><h3>📄 Raw Extracted Text</h3><pre>' + result.rawText.substring(0, 1000) + (result.rawText.length > 1000 ? '...' : '') + '</pre></div>';
+            }
+            
+            resultsDiv.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
