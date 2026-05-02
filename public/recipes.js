@@ -63,18 +63,61 @@ function loadRecipes() {
         recipeGrid.style.opacity = "0";
     }
 
-    // Fetch all recipes and sort client-side
-    db.collection("recipes")
-        .where("userId", "==", user.uid)
-        .get()
+    // Get workspace filter
+    const workspaceFilter = typeof getWorkspaceFilter === 'function' ? getWorkspaceFilter() : { type: 'personal', userId: user.uid };
+    console.log('ðŸ“¦ Loading recipes for workspace:', workspaceFilter);
+
+    // Build query based on workspace type
+    let query;
+    if (workspaceFilter.type === 'personal') {
+        // Personal workspace: user's own recipes
+        query = db.collection("recipes").where("userId", "==", user.uid);
+    } else {
+        // Teamspace: recipes belonging to this teamspace
+        query = db.collection("recipes").where("teamspaceId", "==", workspaceFilter.teamspaceId);
+    }
+
+    // Fetch recipes
+    query.get()
         .then(snapshot => {
             recipeGrid.innerHTML = "";
+            
+            // Filter out teamspace recipes for personal workspace (legacy support)
+            let docs = [];
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                // For personal workspace, exclude recipes that belong to a teamspace
+                if (workspaceFilter.type === 'personal') {
+                    if (!data.teamspaceId) {
+                        docs.push({ id: doc.id, ...data });
+                    }
+                } else {
+                    docs.push({ id: doc.id, ...data });
+                }
+            });
 
-            if (snapshot.size === 0) {
+            if (docs.length === 0 && workspaceFilter.type === 'personal') {
+                // New user with no recipes - create defaults
+                createDefaultRecipes(user.uid).then(() => {
+                    // Reload recipes after creating defaults
+                    isLoadingGrid = false;
+                    loadRecipes();
+                });
+                return;
+            } else if (docs.length === 0 && workspaceFilter.type === 'teamspace') {
+                // New teamspace with no recipes - create defaults
+                createDefaultRecipesForTeamspace(workspaceFilter.teamspaceId, user.uid).then(() => {
+                    // Reload recipes after creating defaults
+                    isLoadingGrid = false;
+                    loadRecipes();
+                });
+                return;
+            } else if (docs.length === 0) {
                 noRecipes.classList.remove("hidden");
                 recipeGrid.classList.add("hidden");
-                recipeGrid.classList.remove("loading");
                 isLoadingGrid = false;
+                recipeGrid.classList.remove("loading");
+                recipeGrid.style.opacity = "";
                 return;
             } else {
                 noRecipes.classList.add("hidden");
@@ -82,10 +125,7 @@ function loadRecipes() {
             }
 
             // Convert to array for sorting
-            const recipes = [];
-            snapshot.forEach(doc => {
-                recipes.push({ id: doc.id, ...doc.data() });
-            });
+            const recipes = docs;
 
             // Apply filters first
             let filteredRecipes = recipes;
@@ -159,8 +199,13 @@ function loadRecipes() {
             const card = document.createElement("div");
             card.classList.add("recipe-card");
 
-            const filledStars = "★".repeat(r.rating || 0);
-            const emptyStars = "☆".repeat(5 - (r.rating || 0));
+            // Use simple text representation instead of Unicode stars
+            const rating = r.rating || 0;
+            const filledStars = "★".repeat(rating);
+            const emptyStars = "☆".repeat(5 - rating);
+            
+            // Debug: log what we're creating
+            console.log('Rating:', rating, 'Stars:', filledStars + emptyStars);
 
             // Check if recipe is in favorites
             const cuisines = r.cuisines || (r.cuisine ? [r.cuisine] : []);
@@ -185,6 +230,11 @@ function loadRecipes() {
                         <div class="card-menu-item">
                             <img src="Images/duplicate.png" class="card-menu-icon">
                             Duplicate
+                        </div>
+
+                        <div class="card-menu-item copy-to">
+                            <img src="Images/duplicate.png" class="card-menu-icon">
+                            Copy to…
                         </div>
 
                         <div class="card-menu-item delete">
@@ -213,8 +263,8 @@ function loadRecipes() {
 
                 <div class="card-img-wrapper">
                     ${
-                        r.imageUrl
-                            ? `<img src="${r.imageUrl}" class="card-img" data-offset="${r.imageOffsetY || 0}" style="top: ${r.imageOffsetY || 0}px;">`
+                        safeImageSrc(r.imageUrl)
+                            ? `<img src="${safeImageSrc(r.imageUrl)}" class="card-img" data-offset="${Number(r.imageOffsetY) || 0}" style="top: ${Number(r.imageOffsetY) || 0}px;">`
                             : `<div class="card-img placeholder"></div>`
                     }
                 </div>
@@ -222,11 +272,11 @@ function loadRecipes() {
                 <div class="card-body">
                     <div class="card-title-row">
                         <img src="Images/fork-knife-logo.png" class="card-title-icon">
-                        <span class="card-title">${r.title || "Untitled"}</span>
+                        <span class="card-title">${escapeHtml(r.title || "Untitled")}</span>
                     </div>
 
                     <div class="card-rating">${filledStars}${emptyStars}</div>
-                    <div class="card-time">${r.minutes || 0} mins</div>
+                    <div class="card-time">${Number(r.minutes) || 0} mins</div>
                 </div>
             `;
 
@@ -264,6 +314,14 @@ function loadRecipes() {
                     await duplicateRecipe(id);
                 });
             }
+
+            // Copy to another workspace (personal <-> teamspace)
+            const copyToBtn = card.querySelector(".card-menu-item.copy-to");
+            copyToBtn.addEventListener("click", async function (e) {
+                e.stopPropagation();
+                dropdown.classList.add("hidden");
+                await copyRecipeToWorkspace(id);
+            });
 
             const deleteBtn = card.querySelector(".card-menu-item.delete");
             deleteBtn.addEventListener("click", async function (e) {
@@ -471,6 +529,11 @@ document.addEventListener("click", async (e) => {
         if (panel) panel.classList.remove("open");
         if (overlay) overlay.classList.remove("active");
 
+        // Update banner share button visibility (hide it when panel closes)
+        if (typeof updateBannerShareButton === 'function') {
+            updateBannerShareButton();
+        }
+
         loadRecipes();
         
         // Update all cuisine counts after saving recipe
@@ -513,7 +576,7 @@ async function autoSave(field, value) {
                 return;
             }
 
-            // ⭐ CRITICAL FIX: Add userId when creating
+            // Ã¢Â­Â CRITICAL FIX: Add userId when creating
             const docRef = await db.collection("recipes").add({
                 userId: user.uid,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -521,6 +584,11 @@ async function autoSave(field, value) {
             });
 
             currentDraftId = docRef.id;
+            
+            // Update banner share button visibility when recipe is created
+            if (typeof updateBannerShareButton === 'function') {
+                updateBannerShareButton();
+            }
 
         } catch (err) {
             console.error("Error creating recipe:", err);
@@ -638,14 +706,41 @@ async function removeFromFavorites(recipeId) {
 // UPDATE ALL CUISINE COUNTS
 // ================================
 async function updateAllCuisineCounts() {
+    console.log('🔄 updateAllCuisineCounts called');
     try {
         const user = auth.currentUser;
-        if (!user) return;
+        if (!user) {
+            console.log('❌ No user logged in');
+            return;
+        }
 
+        // Get workspace filter with better error handling
+        let workspaceFilter;
+        try {
+            workspaceFilter = typeof getWorkspaceFilter === 'function' ? getWorkspaceFilter() : null;
+        } catch (e) {
+            console.log('⚠️ getWorkspaceFilter failed:', e);
+            workspaceFilter = null;
+        }
+        
+        // Default to personal workspace if no filter available
+        if (!workspaceFilter || !workspaceFilter.type) {
+            workspaceFilter = { type: 'personal', userId: user.uid };
+        }
+        
+        console.log('📊 Workspace filter:', workspaceFilter);
+
+        // Build query based on workspace type
+        let recipesQuery;
+        if (workspaceFilter.type === 'personal') {
+            // Personal workspace: query user's recipes, will filter out teamspace ones below
+            recipesQuery = db.collection("recipes").where("userId", "==", user.uid);
+        } else {
+            recipesQuery = db.collection("recipes").where("teamspaceId", "==", workspaceFilter.teamspaceId);
+        }
+        
         // Get all recipes
-        const snapshot = await db.collection("recipes")
-            .where("userId", "==", user.uid)
-            .get();
+        const snapshot = await recipesQuery.get();
         
         // Count recipes per cuisine
         // Recipes can store either names (old format) or objects with id/name (new format)
@@ -654,6 +749,12 @@ async function updateAllCuisineCounts() {
         
         snapshot.forEach(doc => {
             const data = doc.data();
+            
+            // Skip teamspace recipes when in personal workspace
+            if (workspaceFilter.type === 'personal' && data.teamspaceId) {
+                return;
+            }
+            
             const cuisines = data.cuisines || (data.cuisine ? [data.cuisine] : []);
             
             cuisines.forEach(cuisine => {
@@ -674,17 +775,51 @@ async function updateAllCuisineCounts() {
         });
 
         // Update Favorites count
-        const favoritesRow = document.querySelector('[data-id="FAVORITES"]');
+        console.log('⭐ Favorites count:', cuisineCountsByName["Favorites"] || 0);
+        let favoritesRow = document.querySelector('[data-id="FAVORITES"]');
+        
+        // If Favorites row not found, wait and retry
+        if (!favoritesRow) {
+            console.log('⚠️ Favorites row not found - waiting 500ms...');
+            await new Promise(resolve => setTimeout(resolve, 500));
+            favoritesRow = document.querySelector('[data-id="FAVORITES"]');
+        }
+        
         if (favoritesRow) {
+            console.log('✅ Found Favorites row');
             const countElement = favoritesRow.querySelector('.cuisine-count');
             if (countElement) {
-                countElement.textContent = cuisineCountsByName["Favorites"] || 0;
+                const newCount = cuisineCountsByName["Favorites"] || 0;
+                console.log('✍️ Setting Favorites count to:', newCount);
+                countElement.textContent = newCount;
+            } else {
+                console.log('❌ No count element in Favorites row');
             }
+        } else {
+            console.log('❌ Favorites row still not found after waiting');
         }
 
         // Update all other cuisine counts
         // For each cuisine row, count recipes that match its ID (if available) or name
-        const allCuisineRows = document.querySelectorAll('.cuisine-row:not(.cuisine-row-special)');
+        let allCuisineRows = document.querySelectorAll('.cuisine-row:not(.cuisine-row-special)');
+        console.log('🔍 Found', allCuisineRows.length, 'cuisine rows');
+        console.log('📈 Counts by ID:', cuisineCountsById);
+        console.log('📈 Counts by name:', cuisineCountsByName);
+        
+        // If no cuisine rows found, cuisines might not be loaded yet - wait and retry
+        if (allCuisineRows.length === 0) {
+            console.log('⚠️ No cuisine rows found - cuisines may not be loaded yet. Will retry in 500ms...');
+            await new Promise(resolve => setTimeout(resolve, 500));
+            allCuisineRows = document.querySelectorAll('.cuisine-row:not(.cuisine-row-special)');
+            console.log('🔄 After waiting: Found', allCuisineRows.length, 'cuisine rows');
+            
+            // If still no rows, give up for now
+            if (allCuisineRows.length === 0) {
+                console.log('⚠️ Still no cuisine rows after waiting. Counts will update on next page load.');
+                return;
+            }
+        }
+        
         allCuisineRows.forEach(row => {
             const cuisineId = row.getAttribute('data-id');
             if (cuisineId && cuisineId !== 'FAVORITES') {
@@ -694,13 +829,20 @@ async function updateAllCuisineCounts() {
                     const cuisineName = nameInput.value.trim();
                     const countElement = row.querySelector('.cuisine-count');
                     if (countElement) {
-                        // Prefer counting by ID if available (new format), otherwise by name (backward compatibility)
+                        // Add both ID count (new format) and name count (old format) for total
                         let count = 0;
+                        
+                        // Add count by ID if exists (new recipe format)
                         if (cuisineCountsById[cuisineId] !== undefined) {
-                            count = cuisineCountsById[cuisineId];
-                        } else {
-                            count = cuisineCountsByName[cuisineName] || 0;
+                            count += cuisineCountsById[cuisineId];
                         }
+                        
+                        // Also add count by name (old recipe format)
+                        if (cuisineCountsByName[cuisineName] !== undefined) {
+                            count += cuisineCountsByName[cuisineName];
+                        }
+                        
+                        console.log(`📊 ${cuisineName}: ID count=${cuisineCountsById[cuisineId] || 0}, Name count=${cuisineCountsByName[cuisineName] || 0}, Total=${count}`);
                         countElement.textContent = count;
                     }
                 }
@@ -780,6 +922,458 @@ async function duplicateRecipe(recipeId) {
 }
 
 // ================================
+// COPY RECIPE TO ANOTHER WORKSPACE
+// ================================
+// Makes an independent copy, so editing one never changes the other.
+
+// Places I'm allowed to copy into: my personal book (unless I'm already in
+// it) and every teamspace where I'm an owner or editor (viewers can't add)
+async function getCopyDestinations() {
+    const user = auth.currentUser;
+    const current = typeof getWorkspaceFilter === 'function' ? getWorkspaceFilter() : { type: 'personal' };
+    const destinations = [];
+
+    if (current.type === 'teamspace') {
+        destinations.push({ type: 'personal', teamspaceId: null, name: 'My Recipe Book', icon: '🏠' });
+    }
+
+    const snapshot = await db.collection('teamspaces')
+        .where('memberIds', 'array-contains', user.uid)
+        .get();
+
+    snapshot.forEach(doc => {
+        const ts = doc.data();
+        const role = ts.members?.[user.uid]?.role;
+        const isCurrent = current.type === 'teamspace' && current.teamspaceId === doc.id;
+        if (!isCurrent && (role === 'owner' || role === 'editor')) {
+            destinations.push({ type: 'teamspace', teamspaceId: doc.id, name: ts.name || 'Teamspace', icon: '👥' });
+        }
+    });
+
+    return destinations;
+}
+
+// Small picker in the same style as the app's confirm dialog.
+// Resolves with the chosen destination, or null if cancelled.
+function pickCopyDestination(recipeTitle, destinations) {
+    return new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.className = 'macos-confirm-overlay';
+
+        const options = destinations.length > 0
+            ? destinations.map((d, i) => `
+                <button class="copy-dest-option" data-index="${i}">
+                    <span class="copy-dest-icon">${d.icon}</span>
+                    <span>${escapeHtml(d.name)}</span>
+                </button>`).join('')
+            : `<p class="copy-dest-empty">You're not an owner or editor in any teamspace yet. Create one in Settings, then come back.</p>`;
+
+        overlay.innerHTML = `
+            <div class="macos-confirm-box">
+                <div class="macos-confirm-message">Copy "${escapeHtml(recipeTitle)}" to…</div>
+                <div class="copy-dest-list">${options}</div>
+                <div class="macos-confirm-buttons">
+                    <button class="macos-btn macos-cancel">Cancel</button>
+                </div>
+            </div>
+        `;
+
+        const close = (choice) => {
+            overlay.remove();
+            resolve(choice);
+        };
+
+        overlay.querySelector('.macos-cancel').addEventListener('click', () => close(null));
+        overlay.addEventListener('click', e => { if (e.target === overlay) close(null); });
+        overlay.querySelectorAll('.copy-dest-option').forEach(btn => {
+            btn.addEventListener('click', () => close(destinations[Number(btn.dataset.index)]));
+        });
+
+        document.body.appendChild(overlay);
+    });
+}
+
+async function copyRecipeToWorkspace(recipeId) {
+    try {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        const originalDoc = await db.collection('recipes').doc(recipeId).get();
+        if (!originalDoc.exists) return;
+        const original = originalDoc.data();
+
+        const destinations = await getCopyDestinations();
+        const destination = await pickCopyDestination(original.title || 'Untitled', destinations);
+        if (!destination) return;
+
+        // Cuisine IDs belong to the old workspace, so carry them over by name.
+        // A teamspace cuisine with the same name will pick the recipe up in its count.
+        const cuisines = (original.cuisines || (original.cuisine ? [original.cuisine] : []))
+            .map(c => typeof c === 'string' ? c : c?.name)
+            .filter(Boolean);
+
+        await db.collection('recipes').add({
+            userId: user.uid,
+            teamspaceId: destination.teamspaceId,
+            title: original.title || 'Untitled',
+            cuisines: cuisines,
+            cuisine: cuisines[0] || '',
+            minutes: original.minutes || 0,
+            servings: original.servings || 0,
+            ingredients: original.ingredients || '',
+            instructions: original.instructions || '',
+            rating: original.rating || 0,
+            imageUrl: original.imageUrl || '',
+            imageOffsetY: original.imageOffsetY || 0,
+            imagePosition: original.imagePosition || null,
+            // Linked ingredients point at the old workspace's ingredients, so leave them out
+            relatedIngredients: [],
+            copiedFrom: recipeId,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        if (typeof showSuccessMessage === 'function') {
+            showSuccessMessage(`Copied to ${destination.name}`);
+        }
+    } catch (error) {
+        console.error('Error copying recipe:', error);
+        alert('Could not copy the recipe. Please try again.');
+    }
+}
+
+// ================================
+// CREATE DEFAULT RECIPES FOR NEW USERS
+// ================================
+async function createDefaultRecipes(userId) {
+    const defaultRecipes = [
+        {
+            title: "Classic Chocolate Chip Cookies",
+            cuisines: ["Dessert"],
+            minutes: 25,
+            servings: 24,
+            ingredients: `2 1/4 cups all-purpose flour
+1 tsp baking soda
+1 tsp salt
+1 cup (2 sticks) butter, softened
+3/4 cup granulated sugar
+3/4 cup packed brown sugar
+2 large eggs
+2 tsp vanilla extract
+2 cups chocolate chips`,
+            instructions: `1. Preheat oven to 375Â°F (190Â°C).
+
+2. In a small bowl, combine flour, baking soda, and salt. Set aside.
+
+3. In a large bowl, beat butter and both sugars until creamy. Add eggs and vanilla, beat well.
+
+4. Gradually stir in flour mixture. Fold in chocolate chips.
+
+5. Drop rounded tablespoons of dough onto ungreased baking sheets.
+
+6. Bake 9-11 minutes or until golden brown. Cool on baking sheet for 2 minutes, then transfer to wire rack.`,
+            rating: 5,
+            imageUrl: "Images/chocolate-chip-cookies.jpeg",
+            imageOffsetY: 0
+        },
+        {
+            title: "Quick & Easy Pasta Aglio e Olio",
+            cuisines: ["Italian", "Mains"],
+            minutes: 20,
+            servings: 4,
+            ingredients: `1 lb spaghetti
+1/2 cup olive oil
+6-8 cloves garlic, thinly sliced
+1/2 tsp red pepper flakes
+1/4 cup fresh parsley, chopped
+1/2 cup Parmesan cheese, grated
+Salt and pepper to taste`,
+            instructions: `1. Cook spaghetti according to package directions in salted water. Reserve 1 cup pasta water before draining.
+
+2. While pasta cooks, heat olive oil in a large skillet over medium heat. Add sliced garlic and cook 2-3 minutes until golden (don't burn!).
+
+3. Add red pepper flakes and cook 30 seconds.
+
+4. Add drained pasta to the skillet with garlic oil. Toss to coat, adding reserved pasta water as needed to create a light sauce.
+
+5. Remove from heat, add parsley and Parmesan. Season with salt and pepper.
+
+6. Serve immediately with extra Parmesan on top.`,
+            rating: 4,
+            imageUrl: "Images/pasta-aglio.jpg",
+            imageOffsetY: 0
+        },
+        {
+            title: "Perfect Scrambled Eggs",
+            cuisines: ["Breakfast"],
+            minutes: 10,
+            servings: 2,
+            ingredients: `4 large eggs
+2 tbsp butter
+2 tbsp milk or cream
+Salt and pepper to taste
+Fresh chives or herbs (optional)`,
+            instructions: `1. Crack eggs into a bowl. Add milk, salt, and pepper. Whisk until well combined and slightly frothy.
+
+2. Heat a non-stick skillet over medium-low heat. Add butter and let it melt, coating the pan.
+
+3. Pour in egg mixture. Let sit for 20 seconds without stirring.
+
+4. Using a spatula, gently push eggs from edges to center, tilting pan to let uncooked egg flow to edges.
+
+5. Continue this process until eggs are mostly set but still slightly creamy (they'll continue cooking off heat).
+
+6. Remove from heat immediately. Garnish with fresh herbs if desired. Serve hot!`,
+            rating: 5,
+            imageUrl: "Images/scrambled-eggs.jpg",
+            imageOffsetY: 0
+        }
+    ];
+    
+    const batch = db.batch();
+    
+    for (const recipe of defaultRecipes) {
+        const docRef = db.collection('recipes').doc();
+        batch.set(docRef, {
+            title: recipe.title,
+            cuisines: recipe.cuisines,
+            minutes: recipe.minutes,
+            servings: recipe.servings,
+            ingredients: recipe.ingredients,
+            instructions: recipe.instructions,
+            rating: recipe.rating,
+            imageUrl: recipe.imageUrl,
+            imageOffsetY: recipe.imageOffsetY,
+            userId: userId,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    }
+    
+    try {
+        await batch.commit();
+        console.log('✓ Created default recipes for new user');
+    } catch (error) {
+        console.error('Error creating default recipes:', error);
+    }
+}
+
+// ================================
+// CREATE DEFAULT RECIPES FOR TEAMSPACES
+// ================================
+async function createDefaultRecipesForTeamspace(teamspaceId, createdBy) {
+    const defaultRecipes = [
+        {
+            title: "Classic Chocolate Chip Cookies",
+            cuisines: ["Dessert"],
+            minutes: 25,
+            servings: 24,
+            ingredients: "2 1/4 cups all-purpose flour\n1 tsp baking soda\n1 tsp salt\n1 cup (2 sticks) butter, softened\n3/4 cup granulated sugar\n3/4 cup packed brown sugar\n2 large eggs\n2 tsp vanilla extract\n2 cups chocolate chips",
+            instructions: "1. Preheat oven to 375F (190C).\n\n2. In a small bowl, combine flour, baking soda, and salt. Set aside.\n\n3. In a large bowl, beat butter and both sugars until creamy. Add eggs and vanilla, beat well.\n\n4. Gradually stir in flour mixture. Fold in chocolate chips.\n\n5. Drop rounded tablespoons of dough onto ungreased baking sheets.\n\n6. Bake 9-11 minutes or until golden brown. Cool on baking sheet for 2 minutes, then transfer to wire rack.",
+            rating: 5,
+            imageUrl: "Images/chocolate-chip-cookies.jpeg",
+            imageOffsetY: 0
+        },
+        {
+            title: "Quick & Easy Pasta Aglio e Olio",
+            cuisines: ["Italian", "Mains"],
+            minutes: 20,
+            servings: 4,
+            ingredients: "1 lb spaghetti\n1/2 cup olive oil\n6-8 cloves garlic, thinly sliced\n1/2 tsp red pepper flakes\n1/4 cup fresh parsley, chopped\n1/2 cup Parmesan cheese, grated\nSalt and pepper to taste",
+            instructions: "1. Cook spaghetti according to package directions in salted water. Reserve 1 cup pasta water before draining.\n\n2. While pasta cooks, heat olive oil in a large skillet over medium heat. Add sliced garlic and cook 2-3 minutes until golden (don't burn!).\n\n3. Add red pepper flakes and cook 30 seconds.\n\n4. Add drained pasta to the skillet with garlic oil. Toss to coat, adding reserved pasta water as needed to create a light sauce.\n\n5. Remove from heat, add parsley and Parmesan. Season with salt and pepper.\n\n6. Serve immediately with extra Parmesan on top.",
+            rating: 4,
+            imageUrl: "Images/pasta-aglio.jpg",
+            imageOffsetY: 0
+        },
+        {
+            title: "Perfect Scrambled Eggs",
+            cuisines: ["Breakfast"],
+            minutes: 10,
+            servings: 2,
+            ingredients: "4 large eggs\n2 tbsp butter\n2 tbsp milk or cream\nSalt and pepper to taste\nFresh chives or herbs (optional)",
+            instructions: "1. Crack eggs into a bowl. Add milk, salt, and pepper. Whisk until well combined and slightly frothy.\n\n2. Heat a non-stick skillet over medium-low heat. Add butter and let it melt, coating the pan.\n\n3. Pour in egg mixture. Let sit for 20 seconds without stirring.\n\n4. Using a spatula, gently push eggs from edges to center, tilting pan to let uncooked egg flow to edges.\n\n5. Continue this process until eggs are mostly set but still slightly creamy (they'll continue cooking off heat).\n\n6. Remove from heat immediately. Garnish with fresh herbs if desired. Serve hot!",
+            rating: 5,
+            imageUrl: "Images/scrambled-eggs.jpg",
+            imageOffsetY: 0
+        }
+    ];
+    
+    const batch = db.batch();
+    
+    for (const recipe of defaultRecipes) {
+        const docRef = db.collection('recipes').doc();
+        batch.set(docRef, {
+            title: recipe.title,
+            cuisines: recipe.cuisines,
+            minutes: recipe.minutes,
+            servings: recipe.servings,
+            ingredients: recipe.ingredients,
+            instructions: recipe.instructions,
+            rating: recipe.rating,
+            imageUrl: recipe.imageUrl,
+            imageOffsetY: recipe.imageOffsetY,
+            teamspaceId: teamspaceId,
+            createdBy: createdBy,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    }
+    
+    try {
+        await batch.commit();
+        console.log('Created default recipes for teamspace');
+    } catch (error) {
+        console.error('Error creating default recipes for teamspace:', error);
+    }
+}
+
+// Helper function to add default recipes to existing user (call from console)
+window.addDefaultRecipesToMe = async function() {
+    const user = auth.currentUser;
+    if (!user) {
+        console.error('No user logged in!');
+        return;
+    }
+    
+    console.log('Adding default recipes...');
+    
+    // Check what recipes already exist
+    const existingSnapshot = await db.collection('recipes')
+        .where('userId', '==', user.uid)
+        .get();
+    
+    const existingTitles = new Set();
+    existingSnapshot.forEach(doc => {
+        existingTitles.add(doc.data().title);
+    });
+    
+    console.log('Existing recipes:', existingTitles.size);
+    
+    const defaultRecipes = [
+        {
+            title: "Classic Chocolate Chip Cookies",
+            cuisines: ["Dessert"],
+            minutes: 25,
+            servings: 24,
+            ingredients: `2 1/4 cups all-purpose flour
+1 tsp baking soda
+1 tsp salt
+1 cup (2 sticks) butter, softened
+3/4 cup granulated sugar
+3/4 cup packed brown sugar
+2 large eggs
+2 tsp vanilla extract
+2 cups chocolate chips`,
+            instructions: `1. Preheat oven to 375Â°F (190Â°C).
+
+2. In a small bowl, combine flour, baking soda, and salt. Set aside.
+
+3. In a large bowl, beat butter and both sugars until creamy. Add eggs and vanilla, beat well.
+
+4. Gradually stir in flour mixture. Fold in chocolate chips.
+
+5. Drop rounded tablespoons of dough onto ungreased baking sheets.
+
+6. Bake 9-11 minutes or until golden brown. Cool on baking sheet for 2 minutes, then transfer to wire rack.`,
+            rating: 5,
+            imageUrl: "Images/chocolate-chip-cookies.jpeg"
+        },
+        {
+            title: "Quick & Easy Pasta Aglio e Olio",
+            cuisines: ["Italian", "Mains"],
+            minutes: 20,
+            servings: 4,
+            ingredients: `1 lb spaghetti
+1/2 cup olive oil
+6-8 cloves garlic, thinly sliced
+1/2 tsp red pepper flakes
+1/4 cup fresh parsley, chopped
+1/2 cup Parmesan cheese, grated
+Salt and pepper to taste`,
+            instructions: `1. Cook spaghetti according to package directions in salted water. Reserve 1 cup pasta water before draining.
+
+2. While pasta cooks, heat olive oil in a large skillet over medium heat. Add sliced garlic and cook 2-3 minutes until golden (don't burn!).
+
+3. Add red pepper flakes and cook 30 seconds.
+
+4. Add drained pasta to the skillet with garlic oil. Toss to coat, adding reserved pasta water as needed to create a light sauce.
+
+5. Remove from heat, add parsley and Parmesan. Season with salt and pepper.
+
+6. Serve immediately with extra Parmesan on top.`,
+            rating: 4,
+            imageUrl: "Images/pasta-aglio.jpg"
+        },
+        {
+            title: "Perfect Scrambled Eggs",
+            cuisines: ["Breakfast"],
+            minutes: 10,
+            servings: 2,
+            ingredients: `4 large eggs
+2 tbsp butter
+2 tbsp milk or cream
+Salt and pepper to taste
+Fresh chives or herbs (optional)`,
+            instructions: `1. Crack eggs into a bowl. Add milk, salt, and pepper. Whisk until well combined and slightly frothy.
+
+2. Heat a non-stick skillet over medium-low heat. Add butter and let it melt, coating the pan.
+
+3. Pour in egg mixture. Let sit for 20 seconds without stirring.
+
+4. Using a spatula, gently push eggs from edges to center, tilting pan to let uncooked egg flow to edges.
+
+5. Continue this process until eggs are mostly set but still slightly creamy (they'll continue cooking off heat).
+
+6. Remove from heat immediately. Garnish with fresh herbs if desired. Serve hot!`,
+            rating: 5,
+            imageUrl: "Images/scrambled-eggs.jpg"
+        }
+    ];
+    
+    const batch = db.batch();
+    let addedCount = 0;
+    
+    for (const recipe of defaultRecipes) {
+        if (existingTitles.has(recipe.title)) {
+            console.log(`âŠ˜ Skipping "${recipe.title}" - already exists`);
+            continue;
+        }
+        
+        const docRef = db.collection('recipes').doc();
+        batch.set(docRef, {
+            title: recipe.title,
+            cuisines: recipe.cuisines,
+            minutes: recipe.minutes,
+            servings: recipe.servings,
+            ingredients: recipe.ingredients,
+            instructions: recipe.instructions,
+            rating: recipe.rating,
+            imageUrl: recipe.imageUrl,
+            imageOffsetY: 0,
+            userId: user.uid,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        addedCount++;
+        console.log(`✓ Adding "${recipe.title}"`);
+    }
+    
+    if (addedCount === 0) {
+        console.log('âœ… All default recipes already exist!');
+        return;
+    }
+    
+    try {
+        await batch.commit();
+        console.log(`âœ… Added ${addedCount} recipes! Reloading...`);
+        location.reload();
+    } catch (error) {
+        console.error('âŒ Error:', error);
+    }
+};
+
+// ================================
 // FINAL SAVE
 // ================================
 async function finalizeRecipeSave() {
@@ -801,9 +1395,21 @@ async function finalizeRecipeSave() {
     const imagePosition = { top: preview.style.top || "0px" };
 
     const user = auth.currentUser;
+    
+    // Get current workspace - if in a teamspace, save to that teamspace
+    const workspaceFilter = typeof getWorkspaceFilter === 'function' ? getWorkspaceFilter() : { type: 'personal' };
+    const teamspaceId = workspaceFilter.type === 'teamspace' ? workspaceFilter.teamspaceId : null;
+
+    // Keep whoever created the recipe as its owner. Saving someone else's
+    // teamspace recipe used to overwrite userId with yours, which quietly
+    // moved the recipe into your personal list.
+    const ownerId = existing.userId !== undefined
+        ? existing.userId
+        : (teamspaceId ? null : (user ? user.uid : null));
 
     await db.collection("recipes").doc(currentDraftId).set({
-        userId: user ? user.uid : existing.userId,  // Preserve existing userId or set new one
+        userId: ownerId,
+        teamspaceId: existing.teamspaceId !== undefined ? existing.teamspaceId : teamspaceId, // Preserve existing or use current workspace
         createdAt: existing.createdAt || firebase.firestore.FieldValue.serverTimestamp(),
         title,
         cuisines: cuisines,
