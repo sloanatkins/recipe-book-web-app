@@ -1061,7 +1061,7 @@ async function createDefaultRecipes(userId) {
 2 large eggs
 2 tsp vanilla extract
 2 cups chocolate chips`,
-            instructions: `1. Preheat oven to 375Â°F (190Â°C).
+            instructions: `1. Preheat oven to 375°F (190°C).
 
 2. In a small bowl, combine flour, baking soda, and salt. Set aside.
 
@@ -1264,7 +1264,7 @@ window.addDefaultRecipesToMe = async function() {
 2 large eggs
 2 tsp vanilla extract
 2 cups chocolate chips`,
-            instructions: `1. Preheat oven to 375Â°F (190Â°C).
+            instructions: `1. Preheat oven to 375°F (190°C).
 
 2. In a small bowl, combine flour, baking soda, and salt. Set aside.
 
@@ -1335,7 +1335,7 @@ Fresh chives or herbs (optional)`,
     
     for (const recipe of defaultRecipes) {
         if (existingTitles.has(recipe.title)) {
-            console.log(`âŠ˜ Skipping "${recipe.title}" - already exists`);
+            console.log(`Skipping "${recipe.title}" - already exists`);
             continue;
         }
         
@@ -1360,13 +1360,13 @@ Fresh chives or herbs (optional)`,
     }
     
     if (addedCount === 0) {
-        console.log('âœ… All default recipes already exist!');
+        console.log('All default recipes already exist!');
         return;
     }
     
     try {
         await batch.commit();
-        console.log(`âœ… Added ${addedCount} recipes! Reloading...`);
+        console.log(`Added ${addedCount} recipes! Reloading...`);
         location.reload();
     } catch (error) {
         console.error('âŒ Error:', error);

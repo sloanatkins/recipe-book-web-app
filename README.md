@@ -102,23 +102,27 @@ Firebase apps ship their database config to the browser, so anyone can send requ
 **Recipes**
 Recipe grid with cover photos, ratings, and cook time. Filter by cuisine, sort, search, and copy any recipe into a teamspace.
 
-![Recipe grid](assets/recipes.png)
+<p align="center">
+  <img src="assets/recipes.png" alt="Recipe grid" width="700">
+</p>---
 
 ---
 
 **Teamspaces**
 Shared cookbooks with owner, editor, and viewer roles, plus open, closed, and invite-only access.
 
-![Teamspace settings](assets/teamspace.png)
+<p align="center">
+  <img src="assets/teamspace.png" alt="Teamspace settings" width="700">
+</p>---
 
 ---
 
 **Cookbook PDF**
-Every recipe in a workspace as one PDF, with a cover, a linked table of contents, and page numbers.
+Every recipe in a workspace as one PDF, with a cover, a linked table of contents, and page numbers. Each recipe is sized to fit on one page when it can.
 
-![Cookbook PDF](assets/cookbook.png)
-
----
+<p align="center">
+  <img src="assets/cookbook.gif" alt="Cookbook PDF flipping through its pages" width="420">
+</p>---
 
 ## Project Structure
 
