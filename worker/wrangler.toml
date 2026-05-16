@@ -1,0 +1,21 @@
+name = "recipe-import"
+main = "src/index.js"
+compatibility_date = "2025-07-18"
+
+[vars]
+FIREBASE_PROJECT_ID = "recipe-book-e3d63"
+# sites allowed to call the worker (the live app + Live Server for local testing)
+ALLOWED_ORIGINS = "https://recipe-book-e3d63.web.app,https://recipe-book-e3d63.firebaseapp.com,http://127.0.0.1:5500,http://localhost:5500,http://localhost:5000,http://127.0.0.1:5000,http://localhost:5003,http://127.0.0.1:5003"
+# groq swaps models a lot, so it lives here instead of in the code
+GROQ_MODEL = "qwen/qwen3.8-27b"
+USER_DAILY_LIMIT = "25"
+GLOBAL_DAILY_MODEL_LIMIT = "300"
+
+# create this with: npx wrangler kv namespace create USAGE
+# then paste the id it prints below
+[[kv_namespaces]]
+binding = "USAGE"
+id = "00a4ac77d215445caa03549484cb9bbe"
+
+# the groq key is NOT in this file. set it with:
+#   npx wrangler secret put GROQ_API_KEY
