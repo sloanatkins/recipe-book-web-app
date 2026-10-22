@@ -37,6 +37,24 @@ function cuisineNames(recipe) {
         .filter(name => name && name !== 'Favorites');
 }
 
+// Built-in PDF fonts only cover Latin-1, and some older recipes were saved
+// with garbled characters (like "375Â°F"). Clean both up before drawing.
+const GARBLED = [
+    ['Â°', '°'], ['Â½', '½'], ['Â¼', '¼'], ['Â¾', '¾'], ['Â ', ' '],
+    ['â€™', "'"], ['â€˜', "'"], ['â€œ', '"'], ['â€\u009d', '"'], ['â€"', '-'], ['â€“', '-'],
+    ['Ã©', 'é'], ['Ã¨', 'è'], ['Ã±', 'ñ'],
+];
+const FRACTIONS = { '⅓': '1/3', '⅔': '2/3', '⅛': '1/8', '⅜': '3/8', '⅝': '5/8', '⅞': '7/8', '⅕': '1/5', '⅙': '1/6' };
+
+function pdfText(value) {
+    let text = String(value || '');
+    GARBLED.forEach(([bad, good]) => { text = text.split(bad).join(good); });
+    text = text.replace(/[⅓⅔⅛⅜⅝⅞⅕⅙]/g, f => FRACTIONS[f]);
+    text = text.replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, '-');
+    // Drop anything the PDF font can't draw (emoji, symbols), keep Latin-1
+    return text.replace(/[^\n\x20-\x7E\xA0-\xFF]/g, '').replace(/Â/g, '');
+}
+
 // Load an image through a canvas. Photos get cropped to the box's shape and
 // saved as JPEG; logos keep their transparency as PNG.
 function loadPdfImage(src, boxWidth, boxHeight, { keepTransparency = false } = {}) {
@@ -77,6 +95,15 @@ function loadPdfImage(src, boxWidth, boxHeight, { keepTransparency = false } = {
         img.onerror = () => resolve(null);
         img.src = src;
     });
+}
+
+// The same photo gets drawn more than once while we find a size that fits,
+// so remember what we've already loaded
+const pdfImageCache = new Map();
+function cachedPdfImage(src, boxWidth, boxHeight) {
+    const key = `${src}|${boxWidth}|${boxHeight}`;
+    if (!pdfImageCache.has(key)) pdfImageCache.set(key, loadPdfImage(src, boxWidth, boxHeight));
+    return pdfImageCache.get(key);
 }
 
 // Pale blue-white background for every page
@@ -147,8 +174,9 @@ function makeWriter(doc) {
 
 // ── One recipe ──
 
-async function drawRecipe(doc, recipe) {
+async function drawRecipe(doc, recipe, { photoHeight = 66 } = {}) {
     const { margin } = PDF;
+    const firstPage = doc.getNumberOfPages();
     const pageWidth = doc.internal.pageSize.getWidth();
     const contentWidth = pageWidth - margin * 2;
     const w = makeWriter(doc);
@@ -156,8 +184,7 @@ async function drawRecipe(doc, recipe) {
     // Polaroid-style photo: white frame with a soft shadow
     const frame = 4;
     const photoWidth = contentWidth - frame * 2;
-    const photoHeight = 66;
-    const photo = await loadPdfImage(recipe.imageUrl, photoWidth, photoHeight);
+    const photo = await cachedPdfImage(recipe.imageUrl, photoWidth, photoHeight);
     if (photo) {
         doc.setFillColor(...PDF.shadow);
         doc.roundedRect(margin + 1.2, w.y + 1.2, contentWidth, photoHeight + frame * 2, 2, 2, 'F');
@@ -176,7 +203,7 @@ async function drawRecipe(doc, recipe) {
     doc.setFont('times', 'bold');
     doc.setFontSize(25);
     doc.setTextColor(...PDF.ink);
-    const titleLines = doc.splitTextToSize(recipe.title || 'Untitled', contentWidth);
+    const titleLines = doc.splitTextToSize(pdfText(recipe.title || 'Untitled'), contentWidth);
     doc.text(titleLines, margin, w.y + 4);
     w.y += titleLines.length * 9.5 + 1;
     dottedLine(doc, margin, margin + 40, w.y, PDF.accent, 2.2);
@@ -198,7 +225,7 @@ async function drawRecipe(doc, recipe) {
     };
     if (recipe.minutes) chip(`${recipe.minutes} min`, PDF.panel);
     if (recipe.servings) chip(`Serves ${recipe.servings}`, PDF.panel);
-    cuisineNames(recipe).forEach((tag, i) => chip(tag, PDF.pastels[i % PDF.pastels.length]));
+    cuisineNames(recipe).forEach((tag, i) => chip(pdfText(tag), PDF.pastels[i % PDF.pastels.length]));
 
     if (recipe.rating) {
         wrapIfNeeded(32);
@@ -211,7 +238,7 @@ async function drawRecipe(doc, recipe) {
 
     // Ingredients in a light blue card. The card is drawn page by page, so a long
     // list just continues in a new card on the next page.
-    const ingredients = (recipe.ingredients || '')
+    const ingredients = pdfText(recipe.ingredients)
         .split('\n')
         .map(line => line.replace(/^\s*[•\-*]\s*/, '').trim())
         .filter(Boolean);
@@ -276,7 +303,7 @@ async function drawRecipe(doc, recipe) {
     }
 
     // Instructions with blue numbered circles
-    const steps = (recipe.instructions || '')
+    const steps = pdfText(recipe.instructions)
         .split('\n')
         .map(line => line.replace(/^\s*\d+\s*[\.\)\-]\s*/, '').trim())
         .filter(Boolean);
@@ -309,6 +336,26 @@ async function drawRecipe(doc, recipe) {
             w.y += Math.max(wrapped.length * 4.9, 5) + 4;
         });
     }
+
+    return doc.getNumberOfPages() - firstPage + 1;
+}
+
+// If a recipe spills a few lines onto a second page, try a shorter photo
+// so it fits on one. Each size is tried on a scratch PDF first.
+async function fittedPhotoHeight(recipe) {
+    if (!recipe.imageUrl) return 66;
+    const { jsPDF } = window.jspdf;
+    for (const height of [66, 54, 44]) {
+        const scratch = new jsPDF();
+        if (await drawRecipe(scratch, recipe, { photoHeight: height }) === 1) return height;
+    }
+    return 66;
+}
+
+// Draw a recipe at the photo size that keeps it on one page when possible
+async function drawRecipeFitted(doc, recipe) {
+    const photoHeight = await fittedPhotoHeight(recipe);
+    return drawRecipe(doc, recipe, { photoHeight });
 }
 
 // Footer on every page after `skip`: book name on the left, page number in a
@@ -324,7 +371,7 @@ function addFooters(doc, skip = 0, label = '') {
             doc.setFont('times', 'italic');
             doc.setFontSize(9);
             doc.setTextColor(...PDF.soft);
-            doc.text(label, PDF.margin, y + 1);
+            doc.text(pdfText(label), PDF.margin, y + 1);
         }
         doc.setFillColor(...PDF.accent);
         doc.circle(pageWidth - PDF.margin - 3, y, 3.4, 'F');
@@ -349,7 +396,7 @@ async function generateRecipePDF(recipe) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ compress: true });
     paintPaper(doc);
-    await drawRecipe(doc, recipe);
+    await drawRecipeFitted(doc, recipe);
     if (doc.getNumberOfPages() > 1) addFooters(doc);
     doc.save(pdfFileName(recipe.title));
 }
@@ -415,7 +462,7 @@ async function drawCover(doc, bookName, recipeCount) {
     doc.setFont('times', 'bold');
     doc.setFontSize(36);
     doc.setTextColor(...PDF.ink);
-    const titleLines = doc.splitTextToSize(bookName, pageWidth - 60);
+    const titleLines = doc.splitTextToSize(pdfText(bookName), pageWidth - 60);
     let y = logoY + 44;
     doc.text(titleLines, cx, y, { align: 'center' });
     y += (titleLines.length - 1) * 13 + 11;
@@ -472,7 +519,7 @@ async function downloadCookbook() {
         for (const recipe of recipes) {
             newPage(doc);
             startPages.push(doc.getNumberOfPages());
-            await drawRecipe(doc, recipe);
+            await drawRecipeFitted(doc, recipe);
         }
 
         // Contents with dotted leaders, each row links to its recipe
@@ -499,7 +546,7 @@ async function downloadCookbook() {
             doc.setFont('times', 'normal');
             doc.setFontSize(12);
             doc.setTextColor(...PDF.ink);
-            const title = doc.splitTextToSize(recipe.title || 'Untitled', pageWidth - margin * 2 - 40)[0];
+            const title = doc.splitTextToSize(pdfText(recipe.title || 'Untitled'), pageWidth - margin * 2 - 40)[0];
             doc.text(title, margin + 7, y);
             const leaderStart = margin + 7 + doc.getTextWidth(title) + 3;
 

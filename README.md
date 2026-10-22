@@ -114,9 +114,9 @@ Shared cookbooks with owner, editor, and viewer roles, plus open, closed, and in
 ---
 
 **Cookbook PDF**
-Every recipe in a workspace as one PDF, with a cover, a linked table of contents, and page numbers.
+Every recipe in a workspace as one PDF, with a cover, a linked table of contents, and page numbers. Each recipe is sized to fit on one page when it can.
 
-![Cookbook PDF](assets/cookbook.png)
+![Cookbook PDF flipping through its pages](assets/cookbook.gif)
 
 ---
 
