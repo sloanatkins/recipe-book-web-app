@@ -116,9 +116,9 @@ Shared cookbooks with owner, editor, and viewer roles, plus open, closed, and in
 **Cookbook PDF**
 Every recipe in a workspace as one PDF, with a cover, a linked table of contents, and page numbers. Each recipe is sized to fit on one page when it can.
 
-![Cookbook PDF flipping through its pages](assets/cookbook.gif)
-
----
+<p align="center">
+  <img src="assets/cookbook.gif" alt="Cookbook PDF flipping through its pages" width="420">
+</p>---
 
 ## Project Structure
 
