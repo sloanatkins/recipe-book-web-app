@@ -1,6 +1,8 @@
 # Recipe Book
 
-**A shared digital cookbook** | JavaScript · Firebase Auth · Cloud Firestore · Firebase Hosting
+**Multi-User Recipe Management App** | JavaScript · Firebase Auth · Cloud Firestore · Firebase Hosting · jsPDF
+
+[![Security rules tests](https://github.com/sloanatkins/recipe-book-web-app/actions/workflows/rules-tests.yml/badge.svg)](https://github.com/sloanatkins/recipe-book-web-app/actions/workflows/rules-tests.yml)
 
 **Live app:** https://recipe-book-e3d63.web.app
 
@@ -11,26 +13,6 @@
 Recipe Book is a web app for keeping family recipes in one place and cooking from them together. You sign in with Google, save recipes with photos and ratings, organize them by cuisine, track ingredients, and build a shopping list. Teamspaces let a group share one cookbook, with owner, editor, and viewer roles.
 
 It started as a single-user recipe list and grew into a multi-user app with friends, shared workspaces, and access control. The interface is modeled on Notion: a sidebar for switching workspaces, side panels for editing, and inline properties on each recipe.
-
----
-
-## Features
-
-**Recipes**
-- Cover photos with drag-to-reposition, star ratings, cook time, servings, and multiple cuisines per recipe
-- Import a recipe from a photo (including iPhone HEIC), a PDF, or a text file. Text is pulled out with Tesseract OCR or PDF.js, then parsed in the browser into a title, ingredient list, and numbered steps
-- Download your whole cookbook as a PDF
-
-**Ingredients and shopping**
-- Ingredients grouped by category and linked to the recipes that use them
-- Mark items "to buy" and export a printable shopping list PDF in one of five designs
-
-**People and teamspaces**
-- Usernames, friend search, and friend requests
-- Teamspaces with four access levels: default (members only), open (anyone can join), closed (request to join), and private
-- Roles: owners manage members and settings, editors change recipes, viewers read
-- Copy any recipe between your personal book and your teamspaces
-- Installs to a phone home screen as a web app
 
 ---
 
@@ -46,6 +28,22 @@ flowchart LR
 
 There is no custom server. The browser talks to Firestore directly, which means the security rules are the backend: they are the only thing standing between a user and everyone else's data. That is why they live in this repo and have their own tests.
 
+| Component | Tool |
+|-----------|------|
+| Frontend | HTML, CSS, vanilla JavaScript |
+| Sign-in | Firebase Auth (Google) |
+| Database | Cloud Firestore |
+| Access control | Firestore security rules |
+| Rules tests | Firebase emulator + Mocha |
+| Recipe import | Tesseract.js (OCR), PDF.js, heic2any |
+| PDF export | jsPDF |
+| Hosting | Firebase Hosting |
+| CI | GitHub Actions |
+
+---
+
+## Data Model
+
 | Collection | Holds | Belongs to |
 |------------|-------|------------|
 | recipes, cuisines, ingredients | Cookbook content | One user (`userId`) or one teamspace (`teamspaceId`) |
@@ -56,37 +54,69 @@ There is no custom server. The browser talks to Firestore directly, which means 
 
 ---
 
-## Security
+## What This Demonstrates
 
-Firebase apps ship their database config to the browser, so anyone can send requests straight to Firestore with a few lines of code and skip the UI completely. I audited the app with that in mind and found that the rules were trusting the UI to enforce things it can't.
+- Multi-user access control with no backend server: every permission is enforced in Firestore security rules
+- Role-based sharing: teamspace owners manage members, editors change recipes, viewers read
+- A security audit of my own app, with each finding fixed and covered by a test
+- 40 rules tests against the Firestore emulator, run in GitHub Actions on every push
+- Recipe import from photos, iPhone HEIC images, PDFs, and text files, parsed in the browser
+- A generated cookbook PDF with a cover, a linked table of contents, and page-aware layout
+- A one-time data migration script for moving live data to the new rules safely
 
-**What I found**
+---
 
-| Issue | Impact |
-|-------|--------|
-| Recipes, cuisines, and ingredients were readable with `allow read: if true` | Anyone on the internet, signed in or not, could download every user's cookbook |
-| Any signed-in user could update or delete any teamspace | Someone could add themselves as owner, change access, or delete a group's teamspace |
-| Any teamspace document could be edited by any signed-in user | Strangers could change or delete shared recipes |
-| Creates didn't check who was creating | Users could plant recipes in someone else's account or send friend requests as someone else |
-| Usernames weren't tied to their reservation | Anyone could set their profile name to yours and show up as you in friend search |
-| Friendships only had to include you | Anyone could add themselves to your friends list without you accepting |
-| Profiles stored each user's email, and profiles are readable for friend search | Any signed-in user could collect every user's email address |
-| Saving a teamspace recipe overwrote its `userId` with the editor's | Editing a shared recipe silently moved it into your personal cookbook |
-| Joining a teamspace used `arrayUnion` on a map field | Joining replaced the members map with an array, removing everyone, including the owner |
-| User-written text went into `innerHTML` unescaped | A recipe title like `<img src=x onerror=...>` would run code in every teammate's browser (stored XSS) |
+## Security Questions Answered
 
-**What I changed**
-- Rewrote `firestore.rules` around one model: you can read your own data and data in teamspaces you belong to, and only owners and editors can change teamspace content. Nobody can change who owns a document.
-- Added a `memberIds` array next to the `members` map so "my teamspaces" is a real query. The old code read every teamspace and filtered in the browser, which only worked because the rules allowed reading everything. The rules now require the two fields to match on every write.
-- Spelled out exactly which teamspace updates non-owners can make: leave, join an open teamspace as a viewer, or request to join a closed one for themselves.
-- Validated usernames in the rules, since they're shown on other people's screens. A username is only yours if its reservation doc points at you, checked with `getAfter` so signup and renames happen in one batch.
-- Stopped storing email in Firestore. The account page shows your email from Firebase Auth, which only you can see, and the rules reject any profile with an `email` field. Older profiles remove theirs the next time that person signs in.
-- A friendship can only be created by the person who received the request, in the same write that accepts it. It reuses the request's ID, so one request makes one friendship.
-- Escaped user text before rendering, restricted image sources, and stripped scripts and event handlers out of stored SVG icons.
-- Wrote [rules tests](tests/firestore.rules.test.js) that run against the Firestore emulator. They check what should work and what shouldn't, including the attacks above.
+- **Can someone read another user's recipes?** No. Recipes, cuisines, and ingredients are readable only by their owner and by members of the teamspace they belong to. Before the audit, all three were readable by anyone on the internet.
+- **Can a stranger take over or delete a teamspace?** No. Only the owner can change members, roles, or access, and nobody can change who the owner is. Non-owners can only leave, join an open teamspace as a viewer, or request to join a closed one for themselves.
+- **Can someone pretend to be another user?** No. A username only counts if its reservation belongs to you, friend requests are checked against those reservations, and a friendship only exists if the other person accepted.
+- **Can someone collect other users' emails?** No. Emails are no longer stored in Firestore at all. The app reads your email from Firebase Auth, where only you can see it.
+- **Can a recipe title run code in a teammate's browser?** No. User-written text is escaped before it renders, image sources are restricted, and stored SVG icons are stripped of scripts and event handlers.
 
-**Known limitations**
-- Share links point to a page that isn't built yet. When it is, recipes will need an explicit `shared` flag and a read rule that allows only those.
+---
+
+## Security Audit
+
+Firebase apps ship their database config to the browser, so anyone can send requests straight to Firestore and skip the UI. I audited the app with that in mind and found the rules were trusting the UI to enforce things it can't.
+
+| Issue | Impact | Fix |
+|-------|--------|-----|
+| Recipes, cuisines, and ingredients used `allow read: if true` | Anyone could download every user's cookbook | Owner or teamspace member only |
+| Any signed-in user could update or delete any teamspace | Someone could make themselves owner or delete a group's teamspace | Owner-only changes, plus three narrow self-service updates |
+| Teamspace recipes were editable by any signed-in user | Strangers could change or delete shared recipes | Owners and editors only |
+| Creates didn't check who was creating | Users could plant recipes in someone else's account | New docs must carry your own uid |
+| Usernames weren't tied to their reservation | Anyone could appear as you in friend search | Username must be reserved by you in the same write |
+| Friendships only had to include you | Anyone could add themselves to your friends | Friendship requires an accepted request |
+| Profiles stored email and were readable for friend search | Any user could collect every email | Email removed from Firestore entirely |
+| Saving a teamspace recipe overwrote its owner | Editing a shared recipe moved it into your own book | Owner preserved on save, and the rules block owner changes |
+| Joining used `arrayUnion` on a map field | Joining wiped the member list, owner included | Map entry plus a `memberIds` array kept in sync by the rules |
+| User text rendered with `innerHTML` | A recipe title could run code for every teammate | Escaping and sanitizing before render |
+
+**Known limitation:** share links point to a page that isn't built yet. When it is, recipes will need an explicit `shared` flag and a read rule that allows only those.
+
+---
+
+## App
+
+**Recipes**
+Recipe grid with cover photos, ratings, and cook time. Filter by cuisine, sort, search, and copy any recipe into a teamspace.
+
+![Recipe grid](assets/recipes.png)
+
+---
+
+**Teamspaces**
+Shared cookbooks with owner, editor, and viewer roles, plus open, closed, and invite-only access.
+
+![Teamspace settings](assets/teamspace.png)
+
+---
+
+**Cookbook PDF**
+Every recipe in a workspace as one PDF, with a cover, a linked table of contents, and page numbers.
+
+![Cookbook PDF](assets/cookbook.png)
 
 ---
 
@@ -94,21 +124,24 @@ Firebase apps ship their database config to the browser, so anyone can send requ
 
 ```
 recipe-book-web-app/
+├── .github/workflows/       # Rules tests in CI
 ├── public/
 │   ├── index.html           # Main app
 │   ├── account.html         # Settings: profile, friends, teamspaces
-│   ├── app.js               # Workspaces, sidebar, search, sharing, PDF export
-│   ├── recipes.js           # Recipe grid, editing, autosave
+│   ├── app.js               # Workspaces, sidebar, search, sharing
+│   ├── recipes.js           # Recipe grid, editing, autosave, copy to workspace
 │   ├── cuisines.js          # Cuisines and icon picker
 │   ├── ingredients.js       # Ingredients, groups, shopping list
 │   ├── shopping.js          # Shopping list PDF
+│   ├── cookbook.js          # Recipe and cookbook PDFs
 │   ├── recipe-parser.js     # OCR and PDF import, recipe text parsing
 │   ├── account.js           # Profile, friends, teamspaces
 │   └── utils.js             # HTML escaping and SVG sanitizing
 ├── tests/
 │   └── firestore.rules.test.js
 ├── scripts/
-│   └── migrate-before-rules.js
+│   ├── migrate-before-rules.js
+│   └── find-stored-emails.js
 ├── firestore.rules
 └── firebase.json
 ```
@@ -117,7 +150,7 @@ recipe-book-web-app/
 
 ## Running Locally
 
-Prerequisites: Node.js 18+, Java 11+ (for the Firestore emulator), and the Firebase CLI.
+**Prerequisites:** Node.js 18+, Java 11+ (for the Firestore emulator)
 
 ```bash
 git clone https://github.com/sloanatkins/recipe-book-web-app.git
@@ -131,13 +164,23 @@ npm install
 npm test
 ```
 
-This starts the Firestore emulator, runs every test in `tests/`, and shuts the emulator down. Nothing touches the live database.
+Starts the Firestore emulator, runs all 40 tests, and shuts it down. Nothing touches the live database.
 
 **Serve the app:**
 
 ```bash
 npx firebase serve --only hosting
 ```
+
+**Deploy:**
+
+```bash
+npx firebase deploy --only hosting,firestore:rules
+```
+
+---
+
+Built with JavaScript, Firebase Auth, Cloud Firestore, Firebase Hosting, Tesseract.js, PDF.js, jsPDF, and GitHub Actions.
 
 ---
 
