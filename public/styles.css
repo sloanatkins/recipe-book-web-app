@@ -104,12 +104,43 @@ body {
     width: 100%;
     height: 200px;
     overflow: hidden;
+    position: relative;
 }
 
 .banner-img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+}
+
+.account-btn {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 44px;
+    height: 44px;
+    background: rgba(255, 255, 255, 0.95);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s;
+    z-index: 100;
+}
+
+.account-btn:hover {
+    background: white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: scale(1.05);
+}
+
+.account-btn svg {
+    width: 22px;
+    height: 22px;
+    color: #ff6b35;
 }
 
 .main-container {
@@ -196,12 +227,12 @@ body {
     border-bottom: 1px solid #e0e0e0;
 }
 
-/* HOVER â€” light grey */
+/* HOVER ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â light grey */
 .nav-link:hover {
     background: #f2f2f2;
 }
 
-/* ACTIVE (clicked) â€” blue */
+/* ACTIVE (clicked) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â blue */
 .nav-link.active {
     background: #e7f0ff;
     color: #1976d2;
@@ -1204,6 +1235,37 @@ body {
     transform: translateX(0);
 }
 
+.side-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    height: 100vh;
+
+    width: 50vw;              /* 👈 HALF SCREEN */
+    min-width: 520px;
+    max-width: none;
+
+    background: white;
+    box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+    z-index: 10000;
+
+    transform: translateX(100%);
+    transition: transform 0.3s ease, width 0.3s ease;
+    overflow-y: auto;
+}
+
+.side-panel.open {
+    transform: translateX(0);
+}
+
+@media (max-width: 768px) {
+    .side-panel {
+        width: 100vw;
+        min-width: 100vw;
+    }
+}
+
+
 /* Cover Image Section */
 .cover-image-section {
     position: relative;
@@ -1473,7 +1535,7 @@ Image Modal Overlay
     width: 100%;
     height: auto;
     min-height: 100%;
-    object-fit: contain;  /* â† SHOW FULL IMAGE, NO CROP */
+    object-fit: contain;  /* ÃƒÂ¢Ã¢â‚¬Â Ã‚Â SHOW FULL IMAGE, NO CROP */
     display: none;
     cursor: grab;
     user-select: none;
@@ -2020,7 +2082,7 @@ Image Modal Overlay
 }
 
 /* ============================================
-   FULLSCREEN PANEL â€” ALL CONTENT LEFT ALIGNED
+   FULLSCREEN PANEL ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ALL CONTENT LEFT ALIGNED
 =============================================== */
 
 .side-panel.fullscreen .side-panel-content {
@@ -2141,13 +2203,13 @@ Image Modal Overlay
     display: block !important;
 }
 
-/* FINAL FIX â€” FULL-WIDTH NO-CROP, ALLOW VERTICAL DRAG */
+/* FINAL FIX ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â FULL-WIDTH NO-CROP, ALLOW VERTICAL DRAG */
 #cover-image-preview {
     position: absolute !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
 
-    /* FULL WIDTH â€” NEVER CROP LEFT/RIGHT */
+    /* FULL WIDTH ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â NEVER CROP LEFT/RIGHT */
     width: 100% !important;
     height: auto !important;
     max-width: none !important;
@@ -2155,7 +2217,7 @@ Image Modal Overlay
     /* ALLOW vertical dragging */
     min-height: 100% !important;
 
-    /* NO SIDE CROP â€” USE CONTAIN */
+    /* NO SIDE CROP ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â USE CONTAIN */
     object-fit: contain !important;
 
     /* Allow overflow */
@@ -2174,7 +2236,7 @@ Image Modal Overlay
 
 .recipe-card-image {
     width: 100%;
-    height: 150px;               /* â† FIX: uniform card height */
+    height: 150px;               /* ÃƒÂ¢Ã¢â‚¬Â Ã‚Â FIX: uniform card height */
     overflow: hidden;
     background: #f5f5f5;
     border-bottom: 1px solid #eee;
@@ -2183,7 +2245,7 @@ Image Modal Overlay
 .recipe-card-image img {
     width: 100%;
     height: 100%;
-    object-fit: cover;           /* â† IMPORTANT */
+    object-fit: cover;           /* ÃƒÂ¢Ã¢â‚¬Â Ã‚Â IMPORTANT */
     display: block;
 }
 
@@ -2225,32 +2287,54 @@ Image Modal Overlay
     box-shadow: 0 8px 20px rgba(0,0,0,0.12);
 }
 
+/* ================================
+   FIX: Recipe Card Images - Same Height
+   ================================
+   
+   Add this CSS to your styles.css file to make all recipe
+   card images the same height with proper zoom/crop behavior
+*/
+
 .card-img-wrapper {
-    position: relative;
+    width: 100%;
+    height: 120px; /* Fixed height for all cards */
     overflow: hidden;
-    height: 180px; /* you can adjust */
+    position: relative;
+    background-color: #f5f5f5; /* Fallback if no image */
+    border-radius: 12px 12px 0 0; /* Match card border radius */
 }
 
 .card-img {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
     width: 100%;
-    height: auto;
-    cursor: grab;
-    user-select: none;
+    height: 100%; /* Fill the wrapper height */
+    object-fit: cover; /* Zoom/crop to fill - maintains aspect ratio */
+    object-position: center; /* Center the image */
+    position: absolute;
+    top: 0 !important; /* Override the inline style from repositioning */
+    left: 0;
 }
 
-
+/* For placeholder (no image) */
 .card-img.placeholder {
     width: 100%;
     height: 100%;
-    background: #f3f3f3;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    color: #777;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* ================================
+   OPTIONAL: If you want different heights for different screen sizes
+   ================================ */
+
+@media (max-width: 768px) {
+    .card-img-wrapper {
+        height: 80px; /* Smaller on mobile */
+    }
+}
+
+@media (min-width: 1200px) {
+    .card-img-wrapper {
+        height: 150px; /* Larger on big screens */
+    }
 }
 
 .card-body {
@@ -2266,7 +2350,7 @@ Image Modal Overlay
     display: flex;
     align-items: flex-start !important;
     gap: 3px;
-    width: 100%;            /* â† necessary */
+    width: 100%;            /* ÃƒÂ¢Ã¢â‚¬Â Ã‚Â necessary */
     justify-content: flex-start;
 }
 
@@ -2275,13 +2359,13 @@ Image Modal Overlay
     width: 28px;
     display: block;              /* FIX 1 */
     object-fit: contain;         /* FIX 2 */
-    margin-left: -5px !important; /* FIX 3 â€” VISUAL ALIGNMENT */
+    margin-left: -5px !important; /* FIX 3 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â VISUAL ALIGNMENT */
 }
 
 
 
 .card-rating {
-    width: 100%;           /* â† COMPLETE FIX */
+    width: 100%;           /* ÃƒÂ¢Ã¢â‚¬Â Ã‚Â COMPLETE FIX */
     display: flex;
     justify-content: flex-start;
 }
@@ -2289,7 +2373,7 @@ Image Modal Overlay
 
 
 .card-time {
-    width: 100%;          /* â† IMPORTANT */
+    width: 100%;          /* ÃƒÂ¢Ã¢â‚¬Â Ã‚Â IMPORTANT */
     display: flex;
     justify-content: flex-start;
 }
@@ -2379,11 +2463,12 @@ Image Modal Overlay
     opacity: 0.7;
 }
 
-/* Make star icon smaller in menu */
+/* Make star icon smaller in menu and align text properly */
 .card-menu-item img[src*="star"] {
     width: 10px;
     height: 10px;
-    margin-left: 4px;
+    margin-left: 3px;
+    margin-right: 3px;
 }
 
 .card-menu-item.delete .card-menu-icon {
@@ -2404,7 +2489,7 @@ Image Modal Overlay
 }
 
 
-/* Card reposition mode â€“ blue outline just like Notion */
+/* Card reposition mode ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ blue outline just like Notion */
 .recipe-card.is-repositioning {
     box-shadow: 0 0 0 3px #4c8aff !important;
 }
@@ -2415,7 +2500,7 @@ Image Modal Overlay
 }
 
 
-/* Top-right Save/Cancel bar â€” same position as hover controls */
+/* Top-right Save/Cancel bar ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â same position as hover controls */
 .card-reposition-bar {
     position: absolute;
     top: 8px;
@@ -2578,10 +2663,38 @@ Image Modal Overlay
     transition: background-color 0.3s ease;
 }
 
+/* Blue line indicator (like Notion) - positioned between rows */
+.cuisine-drop-indicator {
+    height: 3px;
+    background: #2196F3;
+    border-radius: 2px;
+    width: calc(100% - 32px);
+    margin: 0 16px;
+    display: none;
+    transition: none;
+    position: absolute;
+    left: 0;
+    z-index: 10;
+}
+
+/* Top indicator - appears above the row */
+.cuisine-drop-indicator-top {
+    top: -2px;
+}
+
+/* Bottom indicator - appears below the row */
+.cuisine-drop-indicator-bottom {
+    bottom: -2px;
+}
+
+.cuisine-row.drag-over .cuisine-drop-indicator {
+    display: block;
+}
+
 /* White background (dots area) */
 .cuisine-dots {
-    min-width: 25px;      /* â† WIDER (was 32px) */
-    height: 32px;         /* â† SAME HEIGHT AS cuisine-main */
+    min-width: 25px;      /* ÃƒÂ¢Ã¢â‚¬Â Ã‚Â WIDER (was 32px) */
+    height: 32px;         /* ÃƒÂ¢Ã¢â‚¬Â Ã‚Â SAME HEIGHT AS cuisine-main */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2648,7 +2761,7 @@ Image Modal Overlay
 /* Icon - styles defined below */
 
 
-/* Editable text â€” no blue border */
+/* Editable text ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â no blue border */
 .cuisine-name-input {
     font-size: 17px;
     border: none;
@@ -4097,21 +4210,1212 @@ Image Modal Overlay
 }
 
 /* ========================================
-   UPLOAD SUCCESS MESSAGE
+   GLOBAL STYLES - SINGLE BACKGROUND IMAGE
 ======================================== */
-.upload-success-message {
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-color: #e8f4f8; /* Fallback color */
+    background-image: url('Images/background.png');
+    background-repeat: no-repeat; /* Don't repeat - single image */
+    background-size: cover; /* Cover entire screen */
+    background-attachment: scroll; /* Stay in place when scrolling */
+    background-position: center top; /* Center the image */
+    color: #333;
+    min-height: 100vh;
+}
+
+/* Optional: Very light overlay to make text more readable - adjust or remove */
+body::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0); /* 30% white overlay - adjust to 0 to remove */
+    z-index: 0;
+    pointer-events: none;
+}
+
+/* Make sure all main content appears above the overlay */
+#app-container,
+#login-screen {
+    position: relative;
+    z-index: 1;
+}
+
+/* Ensure main container takes full height */
+#app-container {
+    min-height: 100vh;
+}
+
+
+/* ================================
+   SHARE MODAL STYLES
+   ================================ */
+
+/* Share button in side panel */
+.panel-share {
+    background: none;
+    border: none;
+    color: #666;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 8px 16px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.panel-share:hover {
+    background-color: #f5f5f5;
+    color: #333;
+}
+
+/* Share Modal Overlay */
+.share-modal-overlay {
     position: fixed;
-    top: 20px;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.share-modal-overlay.hidden {
+    display: none;
+}
+
+/* Share Modal Container */
+.share-modal {
+    position: fixed;
+    top: 50%;
     left: 50%;
-    transform: translateX(-50%);
-    background: #28a745;
-    color: white;
-    padding: 16px 32px;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translate(-50%, -50%);
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     z-index: 10001;
+    width: 90%;
+    max-width: 520px;
+    animation: slideUp 0.3s ease;
+}
+
+.share-modal.hidden {
+    display: none;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -45%);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+    }
+}
+
+/* Share Modal Header */
+.share-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24px 28px 20px;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.share-modal-header h2 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 600;
+    color: #333;
+}
+
+.share-modal-close {
+    background: none;
+    border: none;
+    font-size: 28px;
+    color: #999;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    padding: 0;
+    line-height: 1;
+}
+
+.share-modal-close:hover {
+    background-color: #f5f5f5;
+    color: #333;
+}
+
+/* Share Modal Content */
+.share-modal-content {
+    padding: 24px 28px 28px;
+}
+
+/* Share Link Section */
+.share-link-section {
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.share-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #666;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.share-link-box {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.share-link-input {
+    flex: 1;
+    padding: 12px 14px;
+    border: 2px solid #e5e5e5;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #333;
+    background: #f8f9fa;
+    font-family: 'Courier New', monospace;
+}
+
+.share-link-input:focus {
+    outline: none;
+    border-color: #4A90E2;
+    background: white;
+}
+
+.copy-link-btn {
+    padding: 12px 20px;
+    background: #4A90E2;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.copy-link-btn:hover {
+    background: #357ABD;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
+}
+
+.copy-link-btn:active {
+    transform: translateY(0);
+}
+
+.share-hint {
+    font-size: 12px;
+    color: #999;
+    margin: 0;
+    font-style: italic;
+}
+
+/* Share Options */
+.share-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Share Option Button */
+.share-option {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 18px 20px;
+    background: #f8f9fa;
+    border: 2px solid #e5e5e5;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
     font-size: 15px;
     font-weight: 500;
+    color: #333;
+    text-align: left;
+}
+
+.share-option:hover {
+    background: #fff;
+    border-color: #4A90E2;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(74, 144, 226, 0.15);
+}
+
+.share-option:active {
+    transform: translateY(0);
+}
+
+/* Share Icon */
+.share-icon {
+    width: 24px;
+    height: 24px;
+    color: #4A90E2;
+    flex-shrink: 0;
+}
+
+.share-option:hover .share-icon {
+    color: #357ABD;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+    .share-modal {
+        width: 95%;
+        max-width: none;
+    }
+    
+    .share-modal-header {
+        padding: 20px 20px 16px;
+    }
+    
+    .share-modal-header h2 {
+        font-size: 20px;
+    }
+    
+    .share-modal-content {
+        padding: 20px;
+    }
+    
+    .share-link-box {
+        flex-direction: column;
+    }
+    
+    .copy-link-btn {
+        width: 100%;
+    }
+    
+    .share-option {
+        padding: 16px 18px;
+        font-size: 14px;
+    }
+}
+
+/* ========================================
+   CUISINE DETAIL PANEL
+======================================== */
+#cuisine-detail-panel {
+    /* Inherits from .side-panel */
+}
+
+.cuisine-detail-header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 40px 32px 20px;
+    gap: 8px;  /* Smaller gap between icon and title: was 20px */
+}
+
+.cuisine-detail-icon {
+    width: 24px;   /* Even smaller: was 32px */
+    height: 24px;  /* Even smaller: was 32px */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;  /* Smaller emoji: was 24px */
+    background: transparent;
+    border-radius: 0;
+}
+
+.cuisine-detail-icon img {
+    width: 22px;   /* Even smaller: was 28px */
+    height: 22px;  /* Even smaller: was 28px */
+    object-fit: contain;
+}
+
+.cuisine-detail-icon svg {
+    width: 22px;   /* Even smaller: was 28px */
+    height: 22px;  /* Even smaller: was 28px */
+}
+
+.cuisine-detail-title {
+    font-size: 28px;
+    font-weight: 600;
+    color: #1a1a1a;
+    text-align: left;
+    margin-top: 0;  /* No extra margin */
+}
+
+.cuisine-detail-count {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: #666;
+    margin-top: 4px;  /* Small gap between title and count */
+}
+
+.count-label {
+    font-weight: 500;
+}
+
+.count-value {
+    font-weight: 600;
+    color: #1a1a1a;
+}
+
+/* Style recipe cards differently when inside cuisine detail panel */
+#cuisine-recipe-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 14px;
+}
+
+/* Make recipe cards smaller in cuisine panel */
+#cuisine-recipe-grid .recipe-card {
+    max-width: 200px;
+}
+
+/* Make dropdown menu narrower in cuisine panel */
+#cuisine-recipe-grid .card-menu-dropdown {
+    min-width: 165px !important;
+    max-width: 165px !important;
+    font-size: 11px !important;
+}
+
+#cuisine-recipe-grid .card-menu-item {
+    padding: 6px 10px !important;
+    font-size: 11px !important;
+    gap: 6px !important;
+    align-items: center !important;
+}
+
+#cuisine-recipe-grid .card-menu-icon {
+    width: 11px !important;
+    height: 11px !important;
+    flex-shrink: 0 !important;
+}
+
+/* Make star icon smaller and add margin to align text */
+#cuisine-recipe-grid .card-menu-item img[src*="star"] {
+    width: 7px !important;
+    height: 7px !important;
+    margin-left: 2px !important;
+    margin-right: 2px !important;
+}
+
+#cuisine-recipe-grid .card-menu-meta {
+    padding: 6px 10px !important;
+    font-size: 9px !important;
+}
+
+#cuisine-recipe-grid .card-img-wrapper,
+#cuisine-recipe-grid .card-img {
+    height: 120px !important;
+}
+
+#cuisine-recipe-grid .card-body {
+    padding: 10px;
+}
+
+#cuisine-recipe-grid .card-title {
+    font-size: 14px;
+}
+
+#cuisine-recipe-grid .card-rating {
+    font-size: 12px;
+}
+
+#cuisine-recipe-grid .card-time {
+    font-size: 12px;
+}
+
+.cuisine-detail-recipes {
+    padding: 0 32px 32px;
+}
+
+.cuisine-detail-section-title {
+    font-size: 16px;  /* Smaller: was 18px */
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e5e5e5;  /* Grey line under heading */
+}
+
+.cuisine-recipe-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));  /* Even smaller cards: was 220px */
+    gap: 14px;  /* Tighter gap: was 16px */
+}
+
+.cuisine-recipe-card {
+    background: white;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.cuisine-recipe-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+}
+
+.cuisine-recipe-image {
+    width: 100%;
+    height: 120px;  /* Smaller: was 140px */
+    object-fit: cover;
+    background: #f8f9fa;
+}
+
+.cuisine-recipe-content {
+    padding: 10px;  /* Smaller padding: was 12px */
+}
+
+.cuisine-recipe-title {
+    font-size: 14px;  /* Smaller: was 15px */
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-bottom: 5px;  /* Tighter: was 6px */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cuisine-recipe-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;  /* Tighter: was 10px */
+    font-size: 12px;  /* Smaller: was 13px */
+    color: #666;
+}
+
+.cuisine-recipe-rating {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.cuisine-recipe-time {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    .cuisine-recipe-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .cuisine-detail-header {
+        padding: 32px 20px 24px;
+    }
+    
+    .cuisine-detail-title {
+        font-size: 28px;
+    }
+    
+    .cuisine-detail-recipes {
+        padding: 0 20px 20px;
+    }
+}
+
+body.auth-checking #login-screen,
+body.auth-checking #app {
+    display: none !important;
+}/* ===========================================
+   WORKSPACE SIDEBAR STYLES (Notion-style)
+   =========================================== */
+
+/* Hamburger Menu Button */
+.workspace-menu-btn {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 1001;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    transition: all 0.2s;
+}
+
+.workspace-menu-btn:hover {
+    background: #f7f7f7;
+}
+
+.workspace-menu-btn svg {
+    width: 18px;
+    height: 18px;
+    color: #666;
+}
+
+/* Sidebar Overlay */
+.workspace-sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.3);
+    z-index: 1002;
     opacity: 0;
-    transition: opacity 0.3s ease;
+    pointer-events: none;
+    transition: opacity 0.3s;
+}
+
+.workspace-sidebar-overlay.active {
+    opacity: 1;
+    pointer-events: all;
+}
+
+/* Sidebar */
+.workspace-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    background: #fbfbfa;
+    z-index: 1003;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-y: auto;
+    box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+    padding: 12px;
+}
+
+.workspace-sidebar.active {
+    transform: translateX(0);
+}
+
+/* Personal Workspace Header */
+.workspace-personal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    border-radius: 6px;
+    margin-bottom: 4px;
+    transition: background 0.2s;
+}
+
+.workspace-personal-header:hover {
+    background: rgba(0,0,0,0.03);
+}
+
+.workspace-personal-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+}
+
+.workspace-personal-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.workspace-personal-avatar svg {
+    width: 16px;
+    height: 16px;
+    color: white;
+}
+
+.workspace-personal-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.workspace-personal-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: #37352f;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.workspace-personal-actions {
+    display: flex;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.workspace-personal-header:hover .workspace-personal-actions {
+    opacity: 1;
+}
+
+.workspace-icon-btn {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.workspace-icon-btn:hover {
+    background: rgba(0,0,0,0.05);
+}
+
+.workspace-icon-btn svg {
+    width: 14px;
+    height: 14px;
+    color: #666;
+}
+
+/* Search Button */
+.workspace-search-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 10px;
+    border: none;
+    background: rgba(0,0,0,0.03);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 8px;
+    transition: background 0.2s;
+}
+
+.workspace-search-btn:hover {
+    background: rgba(0,0,0,0.05);
+}
+
+.workspace-search-icon {
+    width: 16px;
+    height: 16px;
+    opacity: 0.5;
+}
+
+/* Navigation Items */
+.workspace-nav-section {
+    margin-bottom: 12px;
+}
+
+.workspace-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    text-decoration: none;
+    color: #666;
+    font-size: 14px;
+    transition: background 0.2s;
+    cursor: pointer;
+}
+
+.workspace-nav-item:hover {
+    background: rgba(0,0,0,0.03);
+}
+
+.workspace-nav-icon {
+    font-size: 16px;
+    width: 20px;
+    text-align: center;
+}
+
+/* Workspace Sections */
+.workspace-section {
+    margin-bottom: 12px;
+}
+
+.workspace-section-header {
+    display: flex;
+    align-items: center;
+    padding: 6px 10px;
+    margin-bottom: 2px;
+}
+
+.workspace-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.workspace-section-content {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Workspace Items */
+.workspace-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    text-decoration: none;
+    color: #37352f;
+    font-size: 14px;
+    transition: background 0.2s;
+    cursor: pointer;
+}
+
+.workspace-item:hover {
+    background: rgba(0,0,0,0.03);
+}
+
+.workspace-item-icon {
+    font-size: 16px;
+    width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.workspace-item-name {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Teamspace with nested pages */
+.workspace-teamspace {
+    margin-bottom: 4px;
+}
+
+.workspace-teamspace-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.workspace-teamspace-header:hover {
+    background: rgba(0,0,0,0.03);
+}
+
+.workspace-teamspace-chevron {
+    width: 16px;
+    height: 16px;
+    transition: transform 0.2s;
+}
+
+.workspace-teamspace-chevron.expanded {
+    transform: rotate(90deg);
+}
+
+.workspace-teamspace-chevron svg {
+    width: 12px;
+    height: 12px;
+    color: #999;
+}
+
+.workspace-teamspace-pages {
+    display: none;
+    padding-left: 20px;
+}
+
+.workspace-teamspace-pages.expanded {
+    display: block;
+}
+
+/* Add Button */
+.workspace-add-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border: none;
+    background: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #999;
+    width: 100%;
+    transition: background 0.2s, color 0.2s;
+}
+
+.workspace-add-btn:hover {
+    background: rgba(0,0,0,0.03);
+    color: #666;
+}
+
+.workspace-add-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* =============================================
+   WORKSPACE SEARCH MODAL
+   ============================================= */
+
+.workspace-search-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 2000;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 10vh;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+}
+
+.workspace-search-modal.active {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.workspace-search-modal-content {
+    background: white;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 700px;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.2);
+    animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.workspace-search-modal-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.workspace-search-modal-icon {
+    width: 20px;
+    height: 20px;
+    opacity: 0.5;
+    flex-shrink: 0;
+}
+
+.workspace-search-modal-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 16px;
+    color: #37352f;
+}
+
+.workspace-search-modal-input::placeholder {
+    color: #999;
+}
+
+.workspace-search-modal-close {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: none;
+    font-size: 28px;
+    color: #999;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.workspace-search-modal-close:hover {
+    background: #f7f7f7;
+}
+
+.workspace-search-modal-filters {
+    display: flex;
+    gap: 8px;
+    padding: 12px 20px;
+    border-bottom: 1px solid #e0e0e0;
+    overflow-x: auto;
+}
+
+.workspace-search-filter {
+    padding: 6px 12px;
+    border: 1px solid #e0e0e0;
+    background: white;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #666;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s;
+}
+
+.workspace-search-filter:hover {
+    background: #f7f7f7;
+}
+
+.workspace-search-modal-results {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 0;
+}
+
+.workspace-search-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: #999;
+    font-size: 14px;
+}
+
+.workspace-search-result-group {
+    margin-bottom: 16px;
+}
+
+.workspace-search-result-group-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #999;
+    padding: 8px 20px;
+}
+
+.workspace-search-result-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.workspace-search-result-item:hover {
+    background: #f7f7f7;
+}
+
+.workspace-search-result-icon {
+    font-size: 18px;
+    width: 24px;
+    text-align: center;
+}
+
+.workspace-search-result-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.workspace-search-result-title {
+    font-size: 14px;
+    color: #37352f;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.workspace-search-result-path {
+    font-size: 12px;
+    color: #999;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .workspace-sidebar {
+        width: 260px;
+    }
+    
+    .workspace-search-modal-content {
+        width: 95%;
+        max-height: 80vh;
+    }
+}
+
+/* HIDE "Add new" button in workspace sidebar */
+.workspace-add-btn {
+    display: none !important;
+}
+
+/* Disable teamspace dropdown behavior */
+.workspace-teamspace-chevron {
+    display: none !important;
+}
+
+.workspace-teamspace-pages {
+    display: block !important;
+    padding-left: 0 !important;
+}
+
+/* ================================
+   WORKSPACE SWITCHING STYLES
+================================ */
+
+/* Active workspace item styling */
+.workspace-item-active {
+    background: rgba(55, 53, 47, 0.08) !important;
+    font-weight: 500;
+}
+
+.workspace-item-active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 60%;
+    background: #d0d0d0;
+    border-radius: 0 2px 2px 0;
+}
+
+.workspace-item {
+    position: relative;
+}
+
+/* Current workspace badge */
+.current-workspace-badge {
+    position: fixed;
+    top: 22px;        /* perfectly aligned with hamburger */
+    left: 64px;
+
+    background: rgba(245, 245, 245, 0.85);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+
+    color: #37352f;
+    padding: 6px 14px;
+    border-radius: 999px;
+
+    font-size: 13px;
+    font-weight: 500;
+
+    border: 1px solid rgba(0,0,0,0.08);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    cursor: pointer;
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+    z-index: 100;
+}
+
+
+.current-workspace-badge:hover {
+    background: rgba(235, 235, 235, 0.95);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+    transform: none;
+}
+
+
+/* Mobile adjustments for workspace badge */
+@media (max-width: 768px) {
+    .current-workspace-badge {
+        top: auto;
+        bottom: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 12px;
+        padding: 5px 12px;
+    }
+    
+    .current-workspace-badge:hover {
+        transform: translateX(-50%) translateY(-1px);
+    }
+}
+
+/* ========================================
+   COPY RECIPE TO WORKSPACE PICKER
+======================================== */
+.copy-dest-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 22px;
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+.copy-dest-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 14px;
+    background: #f7f7f7;
+    border: 1px solid #e8e8e8;
+    border-radius: 10px;
+    font-size: 15px;
+    color: #1a1a1a;
+    text-align: left;
+    cursor: pointer;
+    font-family: -apple-system, "SF Pro", sans-serif;
+}
+
+.copy-dest-option:hover {
+    background: #e5ecff;
+    border-color: #c9d6ff;
+}
+
+.copy-dest-icon {
+    font-size: 18px;
+}
+
+.copy-dest-empty {
+    font-size: 14px;
+    color: #666;
+    text-align: center;
+    line-height: 1.5;
 }

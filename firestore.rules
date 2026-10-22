@@ -1,0 +1,303 @@
+rules_version = '2';
+
+// Recipe Book security rules
+// --------------------------
+// Personal data (recipes, cuisines, ingredients) belongs to one user through userId.
+// Shared data belongs to a teamspace through teamspaceId, and teamspace membership
+// lives in two places on the teamspace doc:
+//   members   - map of uid -> { role, addedAt }, used for roles
+//   memberIds - array of uids, used so "my teamspaces" can be a normal query
+// The rules below keep those two in sync on every write.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ──
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function me() {
+      return request.auth.uid;
+    }
+
+    function teamspace(tid) {
+      return get(/databases/$(database)/documents/teamspaces/$(tid)).data;
+    }
+
+    function isMemberOf(tid) {
+      return signedIn()
+        && tid is string
+        && exists(/databases/$(database)/documents/teamspaces/$(tid))
+        && me() in teamspace(tid).members;
+    }
+
+    // Owners and editors can change teamspace content, viewers can only read it
+    function canEditIn(tid) {
+      return isMemberOf(tid)
+        && teamspace(tid).members[me()].role in ['owner', 'editor'];
+    }
+
+    function teamspaceOf(data) {
+      return data.get('teamspaceId', null);
+    }
+
+    function ownerOf(data) {
+      return data.get('userId', null);
+    }
+
+    function validUsername(name) {
+      return name is string && name.matches('^[A-Za-z0-9_]{3,40}$');
+    }
+
+    function usernameDoc(name) {
+      return /databases/$(database)/documents/usernames/$(name.lower());
+    }
+
+    // A username counts as yours only if its reservation doc points at you.
+    // getAfter sees the reservation written in the same batch.
+    function reservedBy(name, uid) {
+      return getAfter(usernameDoc(name)).data.uid == uid;
+    }
+
+    // ── Recipes, cuisines, ingredients ──
+    // Same model for all three: you can see your own docs and docs in teamspaces
+    // you belong to. Only owners/editors can change teamspace docs.
+
+    function canReadContent(data) {
+      return signedIn()
+        && (ownerOf(data) == me()
+            || (teamspaceOf(data) != null && isMemberOf(teamspaceOf(data))));
+    }
+
+    function canWriteContent(data) {
+      return signedIn()
+        && ((teamspaceOf(data) != null && canEditIn(teamspaceOf(data)))
+            || (teamspaceOf(data) == null && ownerOf(data) == me()));
+    }
+
+    // Authors can always delete their own docs (account deletion relies on this),
+    // even in a teamspace where they have since become a viewer.
+
+    // New personal docs must be stamped with your own uid. New teamspace docs
+    // can have no userId (shared defaults) or yours, never someone else's.
+    function validNewContent(data) {
+      return signedIn()
+        && ((teamspaceOf(data) == null && ownerOf(data) == me())
+            || (teamspaceOf(data) != null
+                && canEditIn(teamspaceOf(data))
+                && (ownerOf(data) == null || ownerOf(data) == me())));
+    }
+
+    // Nobody can change who owns a doc. The one allowed move is the owner
+    // putting their own draft into a teamspace they can edit (the recipe
+    // panel creates a draft first and assigns the teamspace on save).
+    function ownershipUnchanged() {
+      let before = resource.data;
+      let after = request.resource.data;
+      return ownerOf(after) == ownerOf(before)
+        && (teamspaceOf(after) == teamspaceOf(before)
+            || (teamspaceOf(before) == null
+                && ownerOf(before) == me()
+                && canEditIn(teamspaceOf(after))));
+    }
+
+    match /recipes/{recipeId} {
+      allow read: if canReadContent(resource.data);
+      allow create: if validNewContent(request.resource.data);
+      allow update: if canWriteContent(resource.data) && ownershipUnchanged();
+      allow delete: if canWriteContent(resource.data) || ownerOf(resource.data) == me();
+    }
+
+    match /cuisines/{cuisineId} {
+      allow read: if canReadContent(resource.data);
+      allow create: if validNewContent(request.resource.data);
+      allow update: if canWriteContent(resource.data) && ownershipUnchanged();
+      allow delete: if canWriteContent(resource.data) || ownerOf(resource.data) == me();
+    }
+
+    match /ingredients/{ingredientId} {
+      allow read: if canReadContent(resource.data);
+      allow create: if validNewContent(request.resource.data);
+      allow update: if canWriteContent(resource.data) && ownershipUnchanged();
+      allow delete: if canWriteContent(resource.data) || ownerOf(resource.data) == me();
+    }
+
+    // ── Settings ──
+
+    match /userSettings/{userId} {
+      allow read, write: if signedIn() && me() == userId;
+    }
+
+    match /teamspaceSettings/{tid} {
+      allow read: if isMemberOf(tid);
+      allow write: if canEditIn(tid);
+    }
+
+    // ── User profiles and usernames ──
+    // Profiles stay readable by signed-in users because friend search queries
+    // them, which is why they can't store email. Usernames are validated here,
+    // not just in the UI, because they get rendered on other people's screens.
+
+    match /users/{userId} {
+      // Profiles are readable by every signed-in user (friend search needs
+      // that), so they must never hold an email. Auth keeps the email private.
+      function profileBasics() {
+        return signedIn()
+          && me() == userId
+          && request.resource.data.get('uid', userId) == userId
+          && !('email' in request.resource.data);
+      }
+
+      // A new or changed username has to be valid and reserved by you, so
+      // nobody can show up in search as someone else
+      function usernameOk(previous) {
+        let name = request.resource.data.get('username', null);
+        return name == null
+          || name == previous
+          || (validUsername(name) && reservedBy(name, me()));
+      }
+
+      allow read: if signedIn();
+      allow create: if profileBasics() && usernameOk(null);
+      allow update: if profileBasics() && usernameOk(resource.data.get('username', null));
+      allow delete: if signedIn() && me() == userId;
+    }
+
+    match /usernames/{name} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.uid == me()
+        && name.matches('^[a-z0-9_]{3,40}$');
+      allow delete: if signedIn() && resource.data.uid == me();
+    }
+
+    // ── Friends ──
+
+    match /friendRequests/{requestId} {
+      allow read: if signedIn()
+        && (me() == resource.data.fromUserId || me() == resource.data.toUserId);
+
+      // You can only send requests as yourself, to someone else
+      allow create: if signedIn()
+        && request.resource.data.fromUserId == me()
+        && request.resource.data.toUserId is string
+        && request.resource.data.toUserId != me()
+        && request.resource.data.status == 'pending'
+        && validUsername(request.resource.data.fromUsername)
+        && validUsername(request.resource.data.toUsername)
+        && reservedBy(request.resource.data.fromUsername, me())
+        && reservedBy(request.resource.data.toUsername, request.resource.data.toUserId);
+
+      // Only the person who received a pending request can answer it
+      allow update: if signedIn()
+        && me() == resource.data.toUserId
+        && resource.data.status == 'pending'
+        && request.resource.data.status in ['accepted', 'declined']
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['status', 'acceptedAt', 'declinedAt']);
+
+      allow delete: if signedIn()
+        && (me() == resource.data.fromUserId || me() == resource.data.toUserId);
+    }
+
+    match /friends/{friendshipId} {
+      function acceptedRequest() {
+        return getAfter(/databases/$(database)/documents/friendRequests/$(friendshipId)).data;
+      }
+
+      allow read: if signedIn() && me() in resource.data.users;
+
+      // A friendship has to come from a request that you received and accepted
+      // in the same write. It reuses the request's ID, so each request can
+      // only ever make one friendship.
+      allow create: if signedIn()
+        && request.resource.data.requestId == friendshipId
+        && acceptedRequest().status == 'accepted'
+        && acceptedRequest().toUserId == me()
+        && request.resource.data.users is list
+        && request.resource.data.users.size() == 2
+        && request.resource.data.users.toSet() == [me(), acceptedRequest().fromUserId].toSet();
+
+      allow delete: if signedIn() && me() in resource.data.users;
+    }
+
+    // ── Teamspaces ──
+
+    match /teamspaces/{tid} {
+
+      function after() {
+        return request.resource.data;
+      }
+
+      function changedKeys() {
+        return after().diff(resource.data).affectedKeys();
+      }
+
+      function membersChanged() {
+        return after().members.diff(resource.data.members).affectedKeys();
+      }
+
+      // members (map) and memberIds (array) have to describe the same people
+      function membersInSync() {
+        return after().members.keys().toSet() == after().memberIds.toSet();
+      }
+
+      function isOwner() {
+        return resource.data.ownerId == me();
+      }
+
+      // A member removing only themselves
+      function leavingSelf() {
+        return me() in resource.data.memberIds
+          && !isOwner()
+          && changedKeys().hasOnly(['members', 'memberIds', 'updatedAt'])
+          && membersChanged() == [me()].toSet()
+          && !(me() in after().members);
+      }
+
+      // Anyone joining an open teamspace, as a viewer
+      function joiningOpen() {
+        return resource.data.accessLevel == 'open'
+          && !(me() in resource.data.memberIds)
+          && changedKeys().hasOnly(['members', 'memberIds', 'updatedAt'])
+          && membersChanged() == [me()].toSet()
+          && after().members[me()].role == 'viewer';
+      }
+
+      // Anyone asking to join a closed teamspace adds one request, for themselves
+      function requestingToJoin() {
+        let before = resource.data.get('pendingRequests', []);
+        let now = after().get('pendingRequests', []);
+        return resource.data.accessLevel == 'closed'
+          && !(me() in resource.data.memberIds)
+          && changedKeys().hasOnly(['pendingRequests'])
+          && now.size() == before.size() + 1
+          && now.hasAll(before)
+          && now[now.size() - 1].userId == me();
+      }
+
+      // Members can see their teamspaces. Open and closed teamspaces are also
+      // visible to everyone signed in, so "Browse public teamspaces" works.
+      allow read: if signedIn()
+        && (me() in resource.data.memberIds
+            || resource.data.accessLevel in ['open', 'closed']);
+
+      // You create a teamspace as its only member and owner
+      allow create: if signedIn()
+        && after().ownerId == me()
+        && after().memberIds == [me()]
+        && after().members.keys().toSet() == [me()].toSet()
+        && after().members[me()].role == 'owner';
+
+      // The owner manages everything else: members, roles, access, requests
+      allow update: if signedIn()
+        && after().ownerId == resource.data.ownerId
+        && membersInSync()
+        && (isOwner() || leavingSelf() || joiningOpen() || requestingToJoin());
+
+      allow delete: if signedIn() && isOwner();
+    }
+  }
+}

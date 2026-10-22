@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Recipe Book</title>
+    
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Recipe Book">
+    <meta name="theme-color" content="#ff6b35">
+    
+    <link rel="stylesheet" href="styles.css?v=57">
+    <link rel="stylesheet" href="account.css?v=11">
+</head>
+<body class="settings-page">
+
+    <!-- Loading Overlay -->
+    <div id="account-loading" class="account-loading-overlay">
+        <div class="account-loading-spinner"></div>
+    </div>
+
+    <!-- Dark Background Overlay -->
+    <div class="settings-overlay"></div>
+
+    <!-- Settings Modal Container -->
+    <div class="settings-modal-container">
+        <!-- Settings Modal Panel -->
+        <div class="settings-modal-panel">
+            <!-- Close Button (top right of modal) -->
+            <button class="settings-modal-close" id="settings-close">&times;</button>
+            
+            <!-- Left Sidebar -->
+            <aside class="settings-sidebar">
+                <!-- Account Section -->
+                <div class="settings-nav-group">
+                    <div class="settings-nav-header">Account</div>
+                    <button class="settings-nav-btn active" data-tab="my-account">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <circle cx="12" cy="10" r="3"/>
+                            <path d="M7 19c0-2 2-3 5-3s5 1 5 3"/>
+                        </svg>
+                        <span>My Account</span>
+                    </button>
+                </div>
+
+                <!-- Workspace Section -->
+                <div class="settings-nav-group">
+                    <div class="settings-nav-header">Workspace</div>
+                    <button class="settings-nav-btn" data-tab="general">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M12 1v6m0 6v6"/>
+                        </svg>
+                        <span>General</span>
+                    </button>
+                    <button class="settings-nav-btn" data-tab="people">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87m-4-12a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                        <span>People</span>
+                    </button>
+                    <button class="settings-nav-btn" data-tab="teamspaces">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" rx="1"/>
+                            <rect x="14" y="3" width="7" height="7" rx="1"/>
+                            <rect x="14" y="14" width="7" height="7" rx="1"/>
+                            <rect x="3" y="14" width="7" height="7" rx="1"/>
+                        </svg>
+                        <span>Teamspaces</span>
+                    </button>
+                </div>
+            </aside>
+
+            <!-- Right Content Area -->
+            <main class="settings-content-area">
+                <!-- My Account Tab -->
+                <div class="settings-tab active" id="tab-my-account">
+                    <h1 class="settings-page-title">Account</h1>
+
+                    <!-- Profile Photo & Name - PHOTO LEFT, INFO RIGHT -->
+                    <section class="settings-section">
+                        <div class="settings-profile-row-horizontal">
+                            <!-- Left: Photo -->
+                            <div class="settings-profile-photo-column">
+                                <img src="" alt="Profile" class="settings-profile-photo-circle" id="profile-photo">
+                                <button class="settings-link-button" id="change-photo-btn">Change photo</button>
+                                <button class="settings-link-button settings-link-danger" id="remove-photo-btn">Remove photo</button>
+                                <input type="file" id="photo-upload" accept="image/*" style="display: none;">
+                            </div>
+                            
+                            <!-- Right: Name Input -->
+                            <div class="settings-profile-info-column">
+                                <label class="settings-input-label">Preferred name</label>
+                                <input type="text" class="settings-text-input" id="profile-display-name" placeholder="Your name">
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Account Details -->
+                    <section class="settings-section">
+                        <h2 class="settings-section-title">Account details</h2>
+                        
+                        <div class="settings-detail-row">
+                            <div class="settings-detail-label">
+                                <div>Username</div>
+                            </div>
+                            <div class="settings-detail-value" id="profile-username">@username</div>
+                            <button class="settings-action-button" id="change-username-btn">Change username</button>
+                        </div>
+
+                        <div class="settings-detail-row">
+                            <div class="settings-detail-label">
+                                <div>Email</div>
+                            </div>
+                            <div class="settings-detail-value" id="profile-email"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="17727a767e7b57726f767a677b723974787a">[email&#160;protected]</a></div>
+                        </div>
+                    </section>
+
+                    <!-- Stats -->
+                    <section class="settings-section">
+                        <h2 class="settings-section-title">Stats</h2>
+                        <div class="settings-stats-grid">
+                            <div class="settings-stat-box">
+                                <div class="settings-stat-number" id="recipe-count">0</div>
+                                <div class="settings-stat-label">Recipes</div>
+                            </div>
+                            <div class="settings-stat-box">
+                                <div class="settings-stat-number" id="friend-count">0</div>
+                                <div class="settings-stat-label">Friends</div>
+                            </div>
+                            <div class="settings-stat-box">
+                                <div class="settings-stat-number" id="pending-count">0</div>
+                                <div class="settings-stat-label">Pending</div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Devices -->
+                    <section class="settings-section">
+                        <h2 class="settings-section-title">Devices</h2>
+                        <div class="settings-detail-row">
+                            <div class="settings-detail-label">
+                                <div>Log out of all devices</div>
+                                <div class="settings-hint">Sign out from all browsers and apps</div>
+                            </div>
+                            <button class="settings-action-button" id="logout-all-btn">Log out all</button>
+                        </div>
+                    </section>
+
+                    <!-- Danger Zone -->
+                    <section class="settings-section">
+                        <h2 class="settings-section-title settings-danger-title">Danger zone</h2>
+                        <div class="settings-detail-row">
+                            <div class="settings-detail-label">
+                                <div class="settings-danger-label">Delete account</div>
+                                <div class="settings-hint">Permanently delete your account and all data</div>
+                            </div>
+                            <button class="settings-danger-button" id="delete-account-btn">Delete</button>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- General Tab -->
+                <div class="settings-tab" id="tab-general">
+                    <h1 class="settings-page-title">Workspace settings</h1>
+
+                    <section class="settings-section">
+                        <h2 class="settings-section-title">Name</h2>
+                        <p class="settings-hint">You can use your organization or company name. Keep it simple.</p>
+                        <input type="text" class="settings-text-input" id="workspace-name" value="My Recipe Book" placeholder="Workspace name">
+                    </section>
+
+                    <section class="settings-section">
+                        <h2 class="settings-section-title settings-danger-title">Danger zone</h2>
+                        <div class="settings-danger-buttons">
+                            <button class="settings-outline-danger-btn">Leave workspace</button>
+                            <button class="settings-outline-danger-btn">Delete entire workspace</button>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- People Tab -->
+                <div class="settings-tab" id="tab-people">
+                    <h1 class="settings-page-title">People</h1>
+
+                    <!-- Search -->
+                    <section class="settings-section">
+                        <h2 class="settings-section-title">Find friends</h2>
+                        <div class="settings-search-wrapper">
+                            <input type="text" class="settings-search-input" id="user-search" placeholder="Search by username..." autocomplete="off">
+                            <svg class="settings-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"/>
+                                <path d="m21 21-4.35-4.35"/>
+                            </svg>
+                        </div>
+                        <div id="search-results" class="settings-results-list"></div>
+                    </section>
+
+                    <!-- Friend Requests - Always Show -->
+                    <section class="settings-section">
+                        <h2 class="settings-section-title">Friend Requests</h2>
+                        <div id="friend-requests-list" class="settings-results-list"></div>
+                    </section>
+
+                    <!-- Friends - Always Show -->
+                    <section class="settings-section">
+                        <h2 class="settings-section-title">Friends</h2>
+                        <div id="friends-list" class="settings-results-list"></div>
+                    </section>
+                </div>
+
+                <!-- Teamspaces Tab -->
+                <div class="settings-tab" id="tab-teamspaces">
+                    <div class="settings-tab-header">
+                        <div>
+                            <h1 class="settings-page-title">Manage teamspaces</h1>
+                            <p class="settings-page-subtitle">Manage all teamspaces you have access to here</p>
+                        </div>
+                        <button class="settings-primary-button" id="new-teamspace-btn">New teamspace</button>
+                    </div>
+
+                    <!-- Search and Filters -->
+                    <div style="margin-bottom: 20px;">
+                        <input type="text" class="settings-search-input" id="teamspace-search" placeholder="Search teamspaces..." autocomplete="off" style="width: 100%;">
+                    </div>
+
+                    <!-- My Teamspaces List -->
+                    <h2 style="font-size: 18px; font-weight: 600; margin-bottom: 16px; color: #1a1a1a;">My Teamspaces</h2>
+                    <div class="settings-teamspaces-table">
+                        <div class="settings-table-header">
+                            <div class="settings-table-col-teamspace">Teamspace</div>
+                            <div class="settings-table-col-owners">Owners</div>
+                            <div class="settings-table-col-access">Access</div>
+                            <div class="settings-table-col-updated">Updated ↓</div>
+                            <div class="settings-table-col-actions"></div>
+                        </div>
+                        <div id="teamspaces-list" class="settings-table-body"></div>
+                    </div>
+
+                    <!-- Browse Public Teamspaces Section -->
+                    <div style="margin-top: 48px;">
+                        <h2 style="font-size: 18px; font-weight: 600; margin-bottom: 8px; color: #1a1a1a;">Browse Public Teamspaces</h2>
+                        <p style="font-size: 14px; color: #666; margin-bottom: 20px;">Discover and join public recipe collections</p>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <input type="text" class="settings-search-input" id="public-teamspace-search" placeholder="Search public teamspaces..." autocomplete="off" style="width: 100%;">
+                        </div>
+
+                        <div class="settings-teamspaces-table">
+                            <div class="settings-table-header">
+                                <div class="settings-table-col-teamspace">Teamspace</div>
+                                <div class="settings-table-col-owners">Owners</div>
+                                <div class="settings-table-col-access">Access</div>
+                                <div class="settings-table-col-updated">Members</div>
+                                <div class="settings-table-col-actions"></div>
+                            </div>
+                            <div id="public-teamspaces-list" class="settings-table-body">
+                                <div style="text-align: center; padding: 40px; color: #999;">
+                                    <p>Search to find public teamspaces</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Username Setup Modal -->
+    <div id="username-modal" class="settings-small-modal hidden">
+        <div class="settings-small-modal-content">
+            <h2>Welcome to Recipe Book!</h2>
+            <p class="settings-modal-description">Choose a unique username to connect with friends and share recipes.</p>
+            <div class="settings-form-group">
+                <label>Username</label>
+                <input type="text" id="username-input" class="settings-text-input" placeholder="Enter username..." maxlength="20">
+                <div class="settings-hint">Letters, numbers, and underscores only</div>
+                <div id="username-error" class="settings-error hidden"></div>
+            </div>
+            <button id="save-username-btn" class="settings-primary-button">Save Username</button>
+        </div>
+    </div>
+
+    <!-- Edit Username Modal -->
+    <div id="edit-username-modal" class="settings-small-modal hidden">
+        <div class="settings-small-modal-content">
+            <div class="settings-modal-header">
+                <h2>Change username</h2>
+                <button class="settings-modal-close-small" id="close-username-modal">&times;</button>
+            </div>
+            <div class="settings-form-group">
+                <label>New username</label>
+                <input type="text" id="new-username-input" class="settings-text-input" placeholder="username" maxlength="20">
+                <div class="settings-hint">Letters, numbers, and underscores only</div>
+                <div id="edit-username-error" class="settings-error hidden"></div>
+            </div>
+            <button id="save-new-username-btn" class="settings-primary-button">Save</button>
+        </div>
+    </div>
+
+
+    <!-- Create/Edit Teamspace Modal -->
+    <div id="teamspace-modal" class="settings-overlay-modal hidden">
+        <div class="settings-modal-box">
+            <div class="settings-modal-box-header">
+                <h2 id="teamspace-modal-title">New teamspace</h2>
+                <button class="settings-modal-close" id="close-teamspace-modal">&times;</button>
+            </div>
+            <div class="settings-modal-box-content">
+                <div class="settings-form-group">
+                    <label>Teamspace name</label>
+                    <input type="text" id="teamspace-name-input" class="settings-text-input" placeholder="Family Recipes" maxlength="50">
+                </div>
+                <div class="settings-form-group">
+                    <label>Description (optional)</label>
+                    <textarea id="teamspace-description-input" class="settings-textarea" placeholder="A place for our family cookbook" rows="3" maxlength="200"></textarea>
+                </div>
+                <div class="settings-form-group">
+                    <label>Access level</label>
+                    <select id="teamspace-access-select" class="settings-select">
+                        <option value="default">Default - Everyone must be a member</option>
+                        <option value="open">Open - Anyone can join</option>
+                        <option value="closed">Closed - Invite only</option>
+                        <option value="private">Private - Only visible to members</option>
+                    </select>
+                </div>
+                <div id="teamspace-error" class="settings-error hidden"></div>
+            </div>
+            <div class="settings-modal-box-footer">
+                <button class="settings-secondary-button" id="cancel-teamspace-btn">Cancel</button>
+                <button class="settings-primary-button" id="save-teamspace-btn">Create teamspace</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Teamspace Settings Modal (Notion-style with tabs) -->
+    <div id="teamspace-settings-modal" class="settings-overlay-modal hidden">
+        <div class="settings-modal-box settings-modal-box-large">
+            <div class="settings-modal-box-header">
+                <div class="settings-teamspace-header-info">
+                    <div class="settings-teamspace-icon">🏠</div>
+                    <div style="flex: 1;">
+                        <h2 id="teamspace-settings-title">Teamspace Name</h2>
+                        <p id="teamspace-settings-members" class="settings-modal-subtitle">2 members</p>
+                    </div>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+                    <button class="settings-modal-close" id="close-teamspace-settings-modal">&times;</button>
+                    <span class="settings-joined-badge">✓ Joined</span>
+                </div>
+            </div>
+            
+            <!-- Tabs -->
+            <div class="settings-modal-tabs">
+                <button class="settings-modal-tab active" data-tab="general">General</button>
+                <button class="settings-modal-tab" data-tab="members">Members</button>
+                <button class="settings-modal-tab" data-tab="requests">Requests</button>
+                <button class="settings-modal-tab" data-tab="security">Security</button>
+            </div>
+            
+            <div class="settings-modal-box-content settings-modal-box-scrollable">
+                <!-- General Tab -->
+                <div class="settings-modal-tab-content active" id="teamspace-tab-general">
+                    <div class="settings-form-group">
+                        <label>Description</label>
+                        <textarea id="teamspace-edit-description" class="settings-textarea" placeholder="No description" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="settings-permission-row">
+
+                <div class="settings-permission-icon">🌍</div>
+
+                        <div class="settings-permission-info">
+                            <div
+                                class="settings-permission-title"
+                                id="teamspace-access-label"
+                            >
+                                Default
+                            </div>
+                            <div class="settings-permission-description">
+                                Everyone at Workspace must be a member
+                            </div>
+                        </div>
+
+                        <!-- 🔹 Anchor wrapper -->
+                        <div class="settings-permission-anchor">
+
+                            <button
+                                class="settings-chevron-btn"
+                                id="teamspace-access-toggle"
+                                aria-label="Change access level"
+                            >
+                                ∨
+                            </button>
+
+                            <!-- 🔽 Dropdown -->
+                            <div
+                                class="settings-permission-dropdown hidden"
+                                id="teamspace-access-dropdown"
+                            >
+                                <div class="settings-permission-option active" data-value="default">
+                                    🌍 Default — Everyone must be a member
+                                </div>
+                                <div class="settings-permission-option" data-value="open">
+                                    🔓 Open — Anyone can join
+                                </div>
+                                <div class="settings-permission-option" data-value="closed">
+                                    🔒 Closed — Invite only
+                                </div>
+                                <div class="settings-permission-option" data-value="private">
+                                    👁 Private — Visible to members only
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    
+                    <div class="settings-divider"></div>
+                    <div class="settings-form-section">
+                        <h3>Manage teamspace</h3>
+                        <div class="settings-action-item">
+                            <div class="settings-action-info">
+                                <div class="settings-action-title" id="leave-teamspace-title">Leave teamspace</div>
+                                <div class="settings-action-description" id="leave-teamspace-description">Removes teamspace from your sidebar</div>
+                            </div>
+                            <button class="settings-secondary-button" id="leave-teamspace-btn">Leave teamspace</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Members Tab -->
+                <div class="settings-modal-tab-content" id="teamspace-tab-members">
+                    <div style="position: relative; margin: -24px -24px 0 -24px; padding: 16px 24px; border-bottom: 1px solid #e0e0e0;">
+                        <div style="position: relative;">
+                            <img src="Images/search.png" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; opacity: 0.5; pointer-events: none;">
+                            <input type="text" class="settings-search-input" id="teamspace-add-members-search" placeholder="Search friends to add..." style="width: 100%; padding-left: 36px !important;">
+                        </div>
+                        <div id="teamspace-add-members-results" class="settings-search-results hidden"></div>
+                    </div>
+                    
+                    <div style="margin-top: 20px; margin-bottom: 12px; font-size: 14px; font-weight: 500; color: #666;">Current members</div>
+                    
+                    <div  class="settings-table-simple">
+                        <div class="settings-table-simple-header">
+                            <div class="settings-table-simple-col-name">Name</div>
+                            <div class="settings-table-simple-col-role">Role</div>
+                        </div>
+                        <div id="teamspace-members-list" class="settings-table-simple-body"></div>
+                    </div>
+                </div>
+                
+                <!-- Requests Tab -->
+                <div class="settings-modal-tab-content" id="teamspace-tab-requests">
+                    <div style="margin-bottom: 20px;">
+                        <p style="font-size: 14px; color: #666;">Manage join requests for this teamspace</p>
+                    </div>
+                    
+                    <div id="teamspace-requests-list"></div>
+                    
+                    <div id="teamspace-no-requests" class="hidden" style="text-align: center; padding: 40px; color: #999;">
+                        <p>No pending requests</p>
+                    </div>
+                </div>
+                
+                <!-- Security Tab -->
+                <div class="settings-modal-tab-content" id="teamspace-tab-security">
+                    <h3>Teamspace Security</h3>
+                    
+                    <div class="settings-security-row">
+                        <div>
+                            <div class="settings-security-title">Who can invite or remove teamspace members</div>
+                        </div>
+                        <select class="settings-select-inline" id="teamspace-invite-permission">
+                            <option value="any">Any teamspace member</option>
+                            <option value="owners">Only owners</option>
+                        </select>
+                    </div>
+                    
+                    <div class="settings-security-row">
+                        <div>
+                            <div class="settings-security-title">Who can edit teamspace sidebar</div>
+                            <div class="settings-security-description">Adding, removing, or re-ordering sidebar pages</div>
+                        </div>
+                        <select class="settings-select-inline">
+                            <option value="any">Any teamspace member</option>
+                            <option value="owners">Only owners</option>
+                        </select>
+                    </div>
+                    
+                    <div class="settings-toggle-row">
+                        <div>
+                            <div class="settings-toggle-title">Invite Link</div>
+                            <div class="settings-toggle-description">Only users who can invite members can see the invite link</div>
+                        </div>
+                        <label class="settings-toggle">
+                            <input type="checkbox" id="teamspace-invite-link-toggle">
+                            <span class="settings-toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="firebase-init.js"></script>
+    <script src="utils.js?v=2"></script>
+    <script src="account.js?v=15"></script>
+
+</body>
+</html>

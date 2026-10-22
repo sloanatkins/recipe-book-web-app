@@ -4,9 +4,155 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recipe Book</title>
-    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Web App Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- iOS Meta Tags for PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Recipe Book">
+    
+    <!-- Apple Touch Icons - Multiple sizes for better iOS support -->
+    <link rel="apple-touch-icon" sizes="57x57" href="/Images/app-icon.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/Images/app-icon.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/Images/app-icon.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/Images/app-icon.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/Images/app-icon.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/Images/app-icon.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/Images/app-icon.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/Images/app-icon.png">
+    
+    <!-- Theme Colors -->
+    <meta name="theme-color" content="#ff6b35">
+    <meta name="msapplication-TileColor" content="#ff6b35">
+    <meta name="msapplication-navbutton-color" content="#ff6b35">
+    
+    <link rel="stylesheet" href="styles.css?v=57">
+    <link rel="stylesheet" href="recipe-upload.css?v=2">
 </head>
 <body>
+
+    <!-- Workspace Sidebar (Notion-style) -->
+    <button class="workspace-menu-btn" id="workspace-menu-btn" title="Open workspace menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="3" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+    </button>
+
+    <div class="workspace-sidebar-overlay" id="workspace-sidebar-overlay"></div>
+    <div class="workspace-sidebar" id="workspace-sidebar">
+        
+        <!-- Personal Workspace Header -->
+        <div class="workspace-personal-header">
+            <div class="workspace-personal-info">
+                <div class="workspace-personal-avatar" id="workspace-avatar">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                        <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                </div>
+                <div class="workspace-personal-details">
+                    <div class="workspace-personal-name" id="workspace-username">Personal</div>
+                </div>
+            </div>
+            <div class="workspace-personal-actions">
+                <button class="workspace-icon-btn" id="workspace-edit-btn" title="Edit">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                </button>
+                <button class="workspace-icon-btn" id="workspace-dropdown-btn" title="More">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Search -->
+        <button class="workspace-search-btn" id="workspace-search-btn">
+            <img src="Images/search.png" class="workspace-search-icon" alt="">
+            <span>Search</span>
+        </button>
+
+        <!-- Navigation Items -->
+        <div class="workspace-nav-section">
+            <a href="#recipes" class="workspace-nav-item">
+                <span class="workspace-nav-icon">🍴</span>
+                <span>Recipes</span>
+            </a>
+            <a href="#cuisines" class="workspace-nav-item">
+                <span class="workspace-nav-icon">🌍</span>
+                <span>Cuisines</span>
+            </a>
+            <a href="#ingredients" class="workspace-nav-item">
+                <span class="workspace-nav-icon">🥕</span>
+                <span>Ingredients</span>
+            </a>
+        </div>
+
+        <!-- Personal Workspace Section -->
+        <div class="workspace-section">
+            <div class="workspace-section-header">
+                <span class="workspace-section-title">My Personal Workspace</span>
+            </div>
+            <div class="workspace-section-content">
+                <div class="workspace-item" id="workspace-personal-item">
+                    <span class="workspace-item-icon">🏠</span>
+                    <span class="workspace-item-name" id="workspace-personal-title">My Recipe Book</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Teamspaces Section -->
+        <div class="workspace-section">
+            <div class="workspace-section-header">
+                <span class="workspace-section-title">Teamspaces</span>
+            </div>
+            <div class="workspace-section-content" id="workspace-teamspaces">
+                <!-- Populated dynamically -->
+            </div>
+            <button class="workspace-add-btn" id="workspace-add-teamspace">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                <span>Add new</span>
+            </button>
+        </div>
+
+    </div>
+
+    <!-- Search Modal -->
+    <div class="workspace-search-modal hidden" id="workspace-search-modal">
+        <div class="workspace-search-modal-content">
+            <div class="workspace-search-modal-header">
+                <img src="Images/search.png" class="workspace-search-modal-icon" alt="">
+                <input type="text" 
+                       class="workspace-search-modal-input" 
+                       id="workspace-search-input" 
+                       placeholder="Search or ask a question in Recipe Book...">
+                <button class="workspace-search-modal-close" id="workspace-search-modal-close">&times;</button>
+            </div>
+            
+            <div class="workspace-search-modal-filters">
+                <button class="workspace-search-filter">↕ Sort</button>
+                <button class="workspace-search-filter">Aa Title only</button>
+                <button class="workspace-search-filter">👤 Created by</button>
+                <button class="workspace-search-filter">🏢 Teamspace</button>
+                <button class="workspace-search-filter">📄 In</button>
+                <button class="workspace-search-filter">📅 Date</button>
+            </div>
+            
+            <div class="workspace-search-modal-results" id="workspace-search-results">
+                <div class="workspace-search-empty">Start typing to search...</div>
+            </div>
+        </div>
+    </div>
 
     <!-- ========================================
          LOGIN SCREEN
@@ -35,6 +181,7 @@
         <!-- Banner -->
         <div class="banner">
             <img src="Images/gradients.png" alt="Banner" class="banner-img">
+            <button class="banner-share-btn" id="banner-share-btn">Add to Home Screen</button>
         </div>
 
         <div class="main-container">
@@ -137,7 +284,7 @@
                                 </div>
                             </div>
 
-                            <!-- â­ New Cuisine button â­ -->
+                            <!-- ÃƒÂ¢Ã‚Â­Ã‚Â New Cuisine button ÃƒÂ¢Ã‚Â­Ã‚Â -->
                             <button class="sidebar-new-btn" id="cuisines-new-btn">
                                 New
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
@@ -148,7 +295,7 @@
                         </div>
                     </div>
 
-                    <!-- â­ The cuisine list goes HERE â€” the ONLY one â­ -->
+                    <!-- ÃƒÂ¢Ã‚Â­Ã‚Â The cuisine list goes HERE ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the ONLY one ÃƒÂ¢Ã‚Â­Ã‚Â -->
                     <div id="cuisines-list" class="cuisines-list"></div>
 
                 </div>
@@ -238,11 +385,11 @@
                                 
                                 <!-- Rating Filter Dropdown -->
                                 <div class="sort-order-dropdown hidden" id="recipes-rating-dropdown">
-                                    <div class="sort-order-option" data-rating="5">â˜…â˜…â˜…â˜…â˜…</div>
-                                    <div class="sort-order-option" data-rating="4">â˜…â˜…â˜…â˜…â˜†</div>
-                                    <div class="sort-order-option" data-rating="3">â˜…â˜…â˜…â˜†â˜†</div>
-                                    <div class="sort-order-option" data-rating="2">â˜…â˜…â˜†â˜†â˜†</div>
-                                    <div class="sort-order-option" data-rating="1">â˜…â˜†â˜†â˜†â˜†</div>
+                                    <div class="sort-order-option" data-rating="5">★★★★★</div>
+                                    <div class="sort-order-option" data-rating="4">★★★★★</div>
+                                    <div class="sort-order-option" data-rating="3">★★★★★</div>
+                                    <div class="sort-order-option" data-rating="2">★★★★★</div>
+                                    <div class="sort-order-option" data-rating="1">★★★★★</div>
                                     <div class="sort-order-divider"></div>
                                     <div class="sort-order-delete">Clear filter</div>
                                 </div>
@@ -289,11 +436,11 @@
                             </div>
 
                             <div class="recipe-stars">
-                                <span class="star">â˜†</span>
-                                <span class="star">â˜†</span>
-                                <span class="star">â˜†</span>
-                                <span class="star">â˜†</span>
-                                <span class="star">â˜†</span>
+                                <span class="star">★</span>
+                                <span class="star">★</span>
+                                <span class="star">★</span>
+                                <span class="star">★</span>
+                                <span class="star">★</span>
                             </div>
                             <div class="recipe-time">
                                 <svg class="clock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -339,7 +486,10 @@
                                         <img src="Images/search.png" class="search-only-icon">
                                     </button>
                                 </div>
-                                <input type="text" class="search-input hidden" id="ingredients-search-input" placeholder="Search ingredients...">
+                                <div class="search-wrapper" style="position: relative; display: inline-block;">
+                                    <input type="text" class="search-input hidden" id="ingredients-search-input" placeholder="Search ingredients...">
+                                    <button class="search-clear-btn" id="ingredients-search-clear" style="display: none;">×</button>
+                                </div>
                             </div>
 
                             <div class="icon-wrapper" data-tooltip="Settings">
@@ -440,7 +590,7 @@
                             </button>
                             <div class="new-group-input-container hidden" id="new-group-input-container">
                                 <input type="text" class="new-group-input" id="new-group-input" placeholder="New group">
-                                <button class="done-btn" id="new-group-done-btn">Done â†µ</button>
+                                <button class="done-btn" id="new-group-done-btn">Done ÃƒÂ¢Ã¢â‚¬Â Ã‚Âµ</button>
                             </div>
                         </div>
                     </div>
@@ -598,7 +748,7 @@
                     <div class="meta-item">
                         <div class="meta-label">Rating</div>
                         <div class="meta-value" id="meta-rating">
-                            â˜† â˜† â˜† â˜† â˜†
+                            ★★★★★
                         </div>
                     </div>
 
@@ -641,7 +791,7 @@
         <div class="side-panel-topbar">
             <button class="panel-btn close-panel-btn">»</button>
             <button class="panel-btn expand-panel-btn">↔</button>
-            <span class="panel-share">Share</span>
+            <button class="panel-share" id="share-recipe-btn">Share</button>
         </div>
 
         <!-- Cover Image Section -->
@@ -653,7 +803,7 @@
                 <span>Click to add cover image</span>
             </div>
 
-            <!-- â­ ADD THIS LINE BELOW (nothing else removed) â­ -->
+            <!-- ÃƒÂ¢Ã‚Â­Ã‚Â ADD THIS LINE BELOW (nothing else removed) ÃƒÂ¢Ã‚Â­Ã‚Â -->
             <div id="reposition-overlay" class="reposition-overlay">Drag image to reposition</div>
 
             <div class="cover-image-controls">
@@ -725,11 +875,11 @@
                         <img src="Images/star.png" class="property-icon" alt="">
                         <label class="property-label">Rating</label>
                         <div class="rating-input">
-                            <span class="star-input" data-rating="1">â˜†</span>
-                            <span class="star-input" data-rating="2">â˜†</span>
-                            <span class="star-input" data-rating="3">â˜†</span>
-                            <span class="star-input" data-rating="4">â˜†</span>
-                            <span class="star-input" data-rating="5">â˜†</span>
+                            <span class="star-input" data-rating="1">★</span>
+                            <span class="star-input" data-rating="2">★</span>
+                            <span class="star-input" data-rating="3">★</span>
+                            <span class="star-input" data-rating="4">★</span>
+                            <span class="star-input" data-rating="5">★</span>
                         </div>
                     </div>
                     <div class="property-row">
@@ -774,6 +924,42 @@
         </div>    
     </div>
 
+    <!-- ========================================
+         CUISINE DETAIL PANEL
+    ======================================== -->
+    <div id="cuisine-detail-panel" class="side-panel">
+        <!-- Functional Panel -->
+        <div class="side-panel-topbar">
+            <button class="panel-btn close-panel-btn">»</button>
+            <button class="panel-btn expand-panel-btn">↔</button>
+            <button class="panel-share" id="share-cuisine-btn">Share</button>
+        </div>
+
+        <div class="side-panel-content">
+            <div class="side-panel-inner">
+                <!-- Cuisine Header with Icon, Name, and Count -->
+                <div class="cuisine-detail-header">
+                    <div class="cuisine-detail-icon" id="cuisine-detail-icon">
+                        <img src="Images/cuisine.png" alt="">
+                    </div>
+                    <h1 class="cuisine-detail-title" id="cuisine-detail-title">Cuisine</h1>
+                    <div class="cuisine-detail-count" id="cuisine-detail-count">
+                        <span class="count-value">0</span>
+                        <span class="count-label">recipes</span>
+                    </div>
+                </div>
+
+                <!-- Recipes Section -->
+                <div class="cuisine-detail-recipes">
+                    <h2 class="cuisine-detail-section-title">Recipes</h2>
+                    <div class="recipe-grid" id="cuisine-recipe-grid">
+                        <!-- Recipe cards will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="side-panel-overlay"></div>
 
     <!-- FIREBASE -->
@@ -783,14 +969,33 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-storage-compat.js"></script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <!-- Tesseract.js for OCR -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    
+    <!-- heic2any for HEIC image conversion -->
+    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+    
+    <!-- PDF.js for PDF text extraction -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        // Configure PDF.js worker
+        if (typeof pdfjsLib !== 'undefined') {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+    </script>
+    
     <script src="firebase-config.js"></script>
+    <script src="utils.js?v=2"></script>
     
     <!-- ===== MODULAR JAVASCRIPT - 5 FILES ===== -->
-    <script src="app.js"></script>
-    <script src="shopping.js"></script>
-    <script src="recipes.js"></script>
-    <script src="cuisines.js"></script>
-    <script src="ingredients.js"></script>
+    <script src="/app.js?v=50"></script>
+    <script src="shopping.js?v=40"></script>
+    <script src="recipes.js?v=42"></script>
+    <script src="cuisines.js?v=51"></script>
+    <script src="ingredients.js?v=41"></script>
+    <script src="recipe-parser.js?v=2"></script>
+    <script src="cookbook.js?v=4"></script>
 
     
     <div id="macos-confirm-overlay" class="macos-confirm-overlay hidden">
@@ -877,6 +1082,50 @@
         </div>
     </div>
 
+    <!-- ========================================
+         SHARE RECIPE MODAL
+    ======================================== -->
+    <div class="share-modal-overlay hidden" id="share-modal-overlay"></div>
+    <div class="share-modal hidden" id="share-modal">
+        <div class="share-modal-header">
+            <h2>Share Recipe</h2>
+            <button class="share-modal-close" id="share-modal-close">×</button>
+        </div>
+        <div class="share-modal-content">
+            <div class="share-link-section">
+                <label class="share-label">Recipe Link</label>
+                <div class="share-link-box">
+                    <input type="text" id="share-link-input" class="share-link-input" readonly>
+                    <button class="copy-link-btn" id="copy-link-btn">Copy</button>
+                </div>
+                <p class="share-hint">Anyone with this link can view the recipe (no login required)</p>
+            </div>
+            <div class="share-options">
+                <button class="share-option" id="share-via-messages">
+                    <svg class="share-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    <span>Share via Messages</span>
+                </button>
+                <button class="share-option" id="share-via-email">
+                    <svg class="share-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                        <polyline points="22,6 12,13 2,6"/>
+                    </svg>
+                    <span>Share via Email</span>
+                </button>
+                <button class="share-option" id="share-download-pdf">
+                    <svg class="share-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    <span>Download as PDF</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Icon Picker Modal -->
     <div class="icon-picker-modal hidden" id="icon-picker-modal">
         <div class="icon-picker-header">
@@ -915,5 +1164,49 @@
     </div>
 <!-- Add before your other script tags -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<!-- ===============================
+     ACCOUNT MODAL (Notion-style)
+================================ -->
+<div id="account-overlay" class="account-overlay hidden"></div>
+
+<div id="account-modal" class="account-modal hidden">
+  <div class="account-modal-content">
+
+    <!-- ✅ COPY THIS FROM account.html -->
+    <!-- EVERYTHING INSIDE <body> EXCEPT scripts -->
+
+  </div>
+</div>
+
 </body>
+<!-- Recipe Upload Modal (add this before closing -->
+<!-- ============================================
+     RECIPE FILE INPUT - DO NOT MOVE THIS
+     Must be outside any hidden divs/modals
+     ============================================ -->
+<input type="file" id="recipe-file-input" accept=".pdf,.png,.jpg,.jpeg,.heic,.txt" style="display: none;">
+<div class="recipe-upload-modal-overlay hidden" id="recipe-upload-modal-overlay">
+    <div class="recipe-upload-modal">
+        <div class="recipe-upload-modal-header">
+            <h3>Upload Recipe</h3>
+            <button class="recipe-upload-modal-close" id="recipe-upload-modal-close">&times;</button>
+        </div>
+        
+        <div class="recipe-upload-modal-content">
+            <div class="recipe-upload-drop-zone" id="recipe-upload-drop-zone">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                <p class="recipe-upload-title">Drop your recipe file here or click to browse</p>
+                <p class="recipe-upload-subtitle">Supports: Images (PNG, JPG, HEIC), PDF, and Text files</p>
+                <button class="recipe-upload-browse-btn" id="recipe-upload-browse-btn">Choose File</button>
+            </div>
+            
+            <!-- File input moved to end of body -->
+        </div>
+    </div>
+</div>
 </html>

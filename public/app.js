@@ -6,10 +6,164 @@
 // ================================
 // FIREBASE REFERENCES
 // ================================
+document.body.classList.add('auth-checking');
 const auth = firebase.auth();
 const db = firebase.firestore();
 const storage = firebase.storage();
 const provider = new firebase.auth.GoogleAuthProvider();
+
+// Global variables
+let currentUser = null;
+
+// ================================
+// WORKSPACE MANAGEMENT
+// ================================
+// Tracks which workspace is currently active
+// null or 'personal' = personal workspace (user's own recipes)
+// teamspace ID string = teamspace workspace (shared recipes)
+let currentWorkspace = 'personal';
+let currentWorkspaceName = 'My Recipe Book';
+
+// Get the current workspace query filter for Firestore
+function getWorkspaceFilter() {
+    if (currentWorkspace === 'personal' || !currentWorkspace) {
+        // Personal workspace: recipes owned by user with no teamspaceId
+        return { type: 'personal', userId: currentUser?.uid };
+    } else {
+        // Teamspace: recipes that belong to this teamspace
+        return { type: 'teamspace', teamspaceId: currentWorkspace };
+    }
+}
+
+// Switch to a different workspace
+async function switchWorkspace(workspaceType, workspaceId = null, workspaceName = null) {
+    console.log(`🔄 Switching workspace to: ${workspaceType}`, workspaceId);
+    
+    if (workspaceType === 'personal') {
+        currentWorkspace = 'personal';
+        // Get the user's workspace name from Firestore
+        try {
+            const userDoc = await db.collection('users').doc(currentUser.uid).get();
+            currentWorkspaceName = userDoc.exists && userDoc.data().workspaceName 
+                ? userDoc.data().workspaceName 
+                : 'My Recipe Book';
+        } catch (e) {
+            currentWorkspaceName = 'My Recipe Book';
+        }
+    } else if (workspaceType === 'teamspace' && workspaceId) {
+        currentWorkspace = workspaceId;
+        currentWorkspaceName = workspaceName || 'Teamspace';
+    }
+    
+    // Update UI to show active workspace
+    updateActiveWorkspaceUI();
+    
+    // Update the main title/header if needed
+    updateWorkspaceHeader();
+    
+    // 🔑 Ensure defaults exist for this workspace
+    await ensureDefaultCuisinesForWorkspace(
+        getWorkspaceFilter(),
+        currentUser.uid
+    );
+
+    // Reload all data for the new workspace
+    await reloadWorkspaceData();
+
+        
+    // Close the sidebar
+    closeWorkspaceSidebar();
+    
+    console.log(`✅ Switched to workspace: ${currentWorkspaceName}`);
+}
+
+// Update UI to highlight active workspace in sidebar
+function updateActiveWorkspaceUI() {
+    // Remove active class from all workspace items
+    document.querySelectorAll('.workspace-item').forEach(item => {
+        item.classList.remove('workspace-item-active');
+    });
+    
+    // Add active class to current workspace
+    if (currentWorkspace === 'personal') {
+        const personalItem = document.getElementById('workspace-personal-item');
+        if (personalItem) {
+            personalItem.classList.add('workspace-item-active');
+        }
+    } else {
+        // Find the teamspace item
+        const teamspaceItems = document.querySelectorAll('#workspace-teamspaces .workspace-item');
+        teamspaceItems.forEach(item => {
+            if (item.getAttribute('data-teamspace-id') === currentWorkspace) {
+                item.classList.add('workspace-item-active');
+            }
+        });
+    }
+}
+
+// Update the main page header to show current workspace
+function updateWorkspaceHeader() {
+    // Update the recipes section title or add a workspace indicator
+    const recipesTitle = document.querySelector('.recipes-title');
+    if (recipesTitle) {
+        // Could optionally show workspace name here
+        // For now, we'll keep it as "Recipes"
+    }
+    
+    // Show/hide a workspace indicator badge
+    let workspaceBadge = document.getElementById('current-workspace-badge');
+    if (!workspaceBadge) {
+        // Create the badge if it doesn't exist
+        const headerArea = document.querySelector('.right-content');
+        if (headerArea) {
+            workspaceBadge = document.createElement('div');
+            workspaceBadge.id = 'current-workspace-badge';
+            workspaceBadge.className = 'current-workspace-badge';
+            headerArea.insertBefore(workspaceBadge, headerArea.firstChild);
+        }
+    }
+    
+    if (workspaceBadge) {
+        const icon = currentWorkspace === 'personal' ? '🏠' : '👥';
+        workspaceBadge.innerHTML = `${icon} ${escapeHtml(currentWorkspaceName)}`;
+        workspaceBadge.style.display = 'block';
+    }
+}
+
+// Reload all data for the current workspace
+async function reloadWorkspaceData() {
+    console.log('🔄 Reloading workspace data...');
+    
+    // Show loading state
+    const recipeGrid = document.getElementById('recipe-grid');
+    if (recipeGrid) {
+        recipeGrid.style.opacity = '0.5';
+    }
+    
+    try {
+        // Reload recipes
+        if (typeof loadRecipes === 'function') {
+            loadRecipes();
+        }
+        
+        // Reload cuisines
+        if (typeof loadCuisines === 'function') {
+            loadCuisines();
+        }
+        
+        // Reload ingredients  
+        if (typeof loadShoppingIngredients === 'function') {
+            loadShoppingIngredients();
+        }
+    } catch (error) {
+        console.error('Error reloading workspace data:', error);
+    }
+}
+
+// Make workspace functions globally available
+window.switchWorkspace = switchWorkspace;
+window.currentWorkspace = currentWorkspace;
+window.getWorkspaceFilter = getWorkspaceFilter;
 
 // Short helper
 const el = id => document.getElementById(id);
@@ -123,18 +277,58 @@ function initDropdowns() {
             const action = this.textContent.trim();
             const wrapper = this.closest('.new-dropdown-wrapper');
 
+            console.log('Dropdown item clicked:', action);
+            console.log('Wrapper:', wrapper);
+
             const isRecipeBtn = wrapper.querySelector('#recipes-new-btn');
             const isIngredientBtn = wrapper.querySelector('#ingredients-new-btn');
 
+            console.log('isRecipeBtn:', isRecipeBtn);
+            console.log('isIngredientBtn:', isIngredientBtn);
+
             if (isRecipeBtn) {
-                if (action === 'From Scratch') openSidePanel('recipe');
+                if (action === 'From Scratch') {
+                    openSidePanel('recipe');
+                } else if (action === 'Upload') {
+                    console.log('Recipe Upload - triggering file input');
+                    const fileInput = document.getElementById('recipe-file-input');
+                    if (fileInput) {
+                        fileInput.click();
+                    } else {
+                        console.error('recipe-file-input not found!');
+                    }
+                }
             } 
             else if (isIngredientBtn) {
-                if (action === 'Upload') openIngredientPanel();
-                else if (action === 'From Scratch') openIngredientPanel();
+                console.log('Ingredient path - action:', action);
+                if (action === 'Upload') {
+                    console.log('Upload clicked - triggering file upload');
+                    
+                    // Check if function is available
+                    if (typeof triggerIngredientUpload === 'function') {
+                        triggerIngredientUpload();
+                    } else {
+                        console.error('triggerIngredientUpload is not defined - ingredients.js may not be loaded yet');
+                        
+                        // Wait a bit and try again (in case scripts are still loading)
+                        setTimeout(() => {
+                            if (typeof triggerIngredientUpload === 'function') {
+                                console.log('Function found on retry');
+                                triggerIngredientUpload();
+                            } else {
+                                console.error('Function still not available after retry');
+                                alert('Upload feature not loaded. Please hard refresh the page (Ctrl+Shift+R or Cmd+Shift+R)');
+                            }
+                        }, 100);
+                    }
+                }
+                else if (action === 'From Scratch') {
+                    console.log('From Scratch clicked - opening panel');
+                    openIngredientPanel();
+                }
             } 
             else {
-                // ⭐ THIS IS CUISINES ⭐
+                // â­ THIS IS CUISINES â­
                 if (action === 'From Scratch') {
                     createNewCuisine();
                 }
@@ -214,7 +408,7 @@ function initDropdowns() {
             });
         });
 
-        // Handle sort order button clicks (⌄)
+        // Handle sort order button clicks (âŒ„)
         const orderBtns = shoppingSortDropdown.querySelectorAll('.sort-order-btn');
         orderBtns.forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -357,7 +551,7 @@ function initDropdowns() {
             });
         });
 
-        // Handle sort order button clicks (⌄)
+        // Handle sort order button clicks (âŒ„)
         const cuisinesOrderBtns = cuisinesSortDropdown.querySelectorAll('.sort-order-btn');
         cuisinesOrderBtns.forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -1602,6 +1796,9 @@ function openSidePanel(type) {
 
     panel.classList.add('open');
     document.querySelector('.side-panel-overlay').classList.add('active');
+    
+    // Update banner share button visibility (will show once recipe is created)
+    updateBannerShareButton();
 }
 
 
@@ -1699,6 +1896,9 @@ async function openExistingRecipe(id) {
     }
 
     isLoadingRecipe = false;
+    
+    // Update banner share button visibility
+    updateBannerShareButton();
 }
 
 
@@ -1852,9 +2052,18 @@ async function renderCuisineTags(cuisines) {
     let cuisineMap = {}; // Map cuisine IDs to names
     
     if (user) {
-        const snapshot = await db.collection("cuisines")
-            .where("userId", "==", user.uid)
-            .get();
+        // Get workspace filter
+        const workspaceFilter = typeof getWorkspaceFilter === 'function' ? getWorkspaceFilter() : { type: 'personal', userId: user.uid };
+        
+        // Build query based on workspace type
+        let cuisinesQuery;
+        if (workspaceFilter.type === 'personal') {
+            cuisinesQuery = db.collection("cuisines").where("userId", "==", user.uid);
+        } else {
+            cuisinesQuery = db.collection("cuisines").where("teamspaceId", "==", workspaceFilter.teamspaceId);
+        }
+        
+        const snapshot = await cuisinesQuery.get();
         snapshot.forEach(doc => {
             cuisineMap[doc.id] = doc.data().name;
         });
@@ -1869,7 +2078,7 @@ async function renderCuisineTags(cuisines) {
         tag.classList.add('cuisine-tag');
         tag.dataset.cuisineId = cuisineId || '';
         tag.innerHTML = `
-            <span>${cuisineName}</span>
+            <span>${escapeHtml(cuisineName)}</span>
             <button class="cuisine-tag-remove" data-index="${index}">×</button>
         `;
         
@@ -2169,6 +2378,21 @@ function initCoverImage() {
 
 
 // ================================
+// ACCOUNT BUTTON
+// ================================
+function initAccountButton() {
+    const accountBtn = document.getElementById('account-btn');
+  
+    if (accountBtn) {
+      accountBtn.addEventListener('click', () => {
+          window.location.href = '/account.html';
+      });
+    }
+}
+
+
+
+// ================================
 // LOGIN
 // ================================
 el("google-login").onclick = () => {
@@ -2180,12 +2404,17 @@ el("google-login").onclick = () => {
 // AUTH LISTENER
 // ================================
 auth.onAuthStateChanged(user => {
+    document.body.classList.remove('auth-checking'); // Add this line
+
     const login = document.getElementById("login-screen");
     const app = document.getElementById("app");
 
     if (user) {
         login.classList.add("hidden");
         app.classList.remove("hidden");
+
+        // Store current user globally
+        currentUser = user;
 
         initNavigation();
         initDropdowns();
@@ -2194,8 +2423,11 @@ auth.onAuthStateChanged(user => {
         initAutoSaveInputs();
         initActionButtons();
         initIconPicker();
+        initShareFunctionality(); // Initialize share functionality
+        initAccountButton(); // Initialize account button
+        initWorkspaceSidebar(); // Initialize workspace sidebar
         loadRecipes();
-        loadCuisines();
+        loadCuisines('order', 'desc'); // Sort by order by default (descending = 1, 2, 3...)
         loadIngredientGroups();
         initNewGroupButton();
         updateFavoritesCount(); // Update Favorites count on initial load
@@ -2226,3 +2458,716 @@ el("sort-select")?.addEventListener("change", (e) => {
     currentSort = e.target.value;
     loadRecipes();
 });
+
+// ================================
+// SHARE RECIPE FUNCTIONALITY
+// ================================
+let currentRecipeToShare = null;
+let currentShareLink = '';
+
+// Get the base URL for sharing (adjust this to your deployed URL)
+const getBaseUrl = () => {
+    // IMPORTANT: Update this with your Firebase Hosting URL before deploying!
+    // Example: 'https://recipe-book-abc123.web.app'
+    // 
+    // To find your URL:
+    // 1. Go to Firebase Console ? Hosting
+    // 2. Look for your site URL
+    // 3. Replace the line below with: return 'https://YOUR-PROJECT.web.app';
+    
+    // Temporary: Uses current origin (works for local testing)
+    const currentOrigin = window.location.origin;
+    
+    // Auto-detect if we're on localhost
+    if (currentOrigin.includes('localhost') || currentOrigin.includes('127.0.0.1')) {
+        console.warn('?? WARNING: Share links will use localhost and won\'t work on other devices!');
+        console.warn('?? Deploy to Firebase and update getBaseUrl() in app.js');
+    }
+    
+    return currentOrigin;
+    
+    // AFTER DEPLOYING: Replace the line above with your actual URL like this:
+    // return 'https://your-project.web.app';
+};
+
+// Update banner share button visibility - show on homepage for "Add to Home Screen"
+function updateBannerShareButton() {
+    const bannerShareBtn = document.getElementById('banner-share-btn');
+    if (!bannerShareBtn) return;
+    
+    // Check if app is already installed (running in standalone mode)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                        window.navigator.standalone || 
+                        document.referrer.includes('android-app://');
+    
+    if (isStandalone) {
+        // App is already installed, hide the button
+        bannerShareBtn.style.display = 'none';
+        return;
+    }
+    
+    // Hide button when recipe panel is open (to avoid confusion)
+    const panel = document.getElementById('recipe-side-panel');
+    const isPanelOpen = panel && panel.classList.contains('open');
+    
+    if (isPanelOpen) {
+        bannerShareBtn.style.display = 'none';
+    } else {
+        // Show button on homepage for adding to home screen
+        bannerShareBtn.style.display = 'block';
+    }
+}
+
+// Initialize share functionality
+function initShareFunctionality() {
+    console.log('Initializing share functionality...');
+    
+    // Share button click handler function
+    const handleShareClick = async () => {
+        console.log('Share button clicked!');
+        if (!currentDraftId) {
+            alert('Please open a recipe first');
+            return;
+        }
+
+        try {
+            // Get the current recipe data
+            const doc = await db.collection("recipes").doc(currentDraftId).get();
+            const recipe = doc.data();
+            
+            if (!recipe) {
+                alert('Recipe not found');
+                return;
+            }
+
+            currentRecipeToShare = {
+                id: currentDraftId,
+                ...recipe
+            };
+
+            // Generate the share link
+            currentShareLink = `${getBaseUrl()}/recipe-view.html?id=${currentDraftId}`;
+            
+            // Set the link in the input
+            document.getElementById('share-link-input').value = currentShareLink;
+
+            // Show the share modal
+            document.getElementById('share-modal-overlay').classList.remove('hidden');
+            document.getElementById('share-modal').classList.remove('hidden');
+        } catch (err) {
+            console.error('Error loading recipe for sharing:', err);
+            alert('Error loading recipe');
+        }
+    };
+
+    // Open share modal - side panel button
+    const shareBtn = document.getElementById('share-recipe-btn');
+    if (shareBtn) {
+        shareBtn.addEventListener('click', handleShareClick);
+    }
+    
+    // Banner button (mobile) - "Add to Home Screen" functionality
+    const bannerShareBtn = document.getElementById('banner-share-btn');
+    if (bannerShareBtn) {
+        // Check if app is already installed (running in standalone mode)
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                            window.navigator.standalone || 
+                            document.referrer.includes('android-app://');
+        
+        if (isStandalone) {
+            // App is already installed, hide the button
+            bannerShareBtn.style.display = 'none';
+        } else {
+            // Show button and add click handler
+            bannerShareBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                console.log('Banner share button clicked - Add to Home Screen');
+                
+                // Show instructions for adding to home screen
+                showAddToHomeScreenInstructions();
+            });
+        }
+    }
+    
+    // Initial update of banner share button visibility
+    updateBannerShareButton();
+    
+    // Account button - navigate to account page
+    const accountBtn = document.getElementById('account-btn');
+    if (accountBtn) {
+        accountBtn.addEventListener('click', () => {
+            window.location.href = '/account.html';
+        });
+    }
+    
+    // Close share modal
+    const closeBtn = document.getElementById('share-modal-close');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            console.log('Close button clicked!');
+            document.getElementById('share-modal-overlay').classList.add('hidden');
+            document.getElementById('share-modal').classList.add('hidden');
+        });
+    }
+
+    const overlay = document.getElementById('share-modal-overlay');
+    if (overlay) {
+        overlay.addEventListener('click', () => {
+            document.getElementById('share-modal-overlay').classList.add('hidden');
+            document.getElementById('share-modal').classList.add('hidden');
+        });
+    }
+
+    // Copy link to clipboard
+    const copyBtn = document.getElementById('copy-link-btn');
+    if (copyBtn) {
+        copyBtn.addEventListener('click', async () => {
+            console.log('Copy button clicked!');
+            const input = document.getElementById('share-link-input');
+            
+            try {
+                await navigator.clipboard.writeText(input.value);
+                
+                // Visual feedback
+                const btn = document.getElementById('copy-link-btn');
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                btn.style.background = '#10b981';
+                
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '';
+                }, 2000);
+            } catch (err) {
+                // Fallback for older browsers
+                input.select();
+                document.execCommand('copy');
+                alert('Link copied to clipboard!');
+            }
+        });
+    }
+
+    // Share via Messages (SMS)
+    const messagesBtn = document.getElementById('share-via-messages');
+    if (messagesBtn) {
+        messagesBtn.addEventListener('click', () => {
+            console.log('Messages button clicked!');
+            if (!currentRecipeToShare || !currentShareLink) return;
+
+            const recipe = currentRecipeToShare;
+            const messageText = `Check out this recipe: ${recipe.title || 'Recipe'}\n${currentShareLink}`;
+            
+            // Create SMS link (works on mobile devices)
+            const smsLink = `sms:?body=${encodeURIComponent(messageText)}`;
+            window.location.href = smsLink;
+        });
+    }
+
+    // Share via Email
+    const emailBtn = document.getElementById('share-via-email');
+    if (emailBtn) {
+        emailBtn.addEventListener('click', () => {
+            console.log('Email button clicked!');
+            if (!currentRecipeToShare || !currentShareLink) {
+                console.error('No recipe or link available');
+                return;
+            }
+
+            const recipe = currentRecipeToShare;
+            const subject = `Recipe: ${recipe.title || 'Untitled Recipe'}`;
+            const body = `Hi!\n\nI wanted to share this recipe with you: ${recipe.title || 'Recipe'}\n\nView it here:\n${currentShareLink}\n\nEnjoy!`;
+            
+            // Create mailto link
+            const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            
+            console.log('Opening email with:', mailtoLink);
+            
+            // Try to open email
+            try {
+                window.location.href = mailtoLink;
+                
+                // If mailto doesn't work, show fallback after a delay
+                setTimeout(() => {
+                    if (confirm('Email not opening? Would you like to copy the message instead?')) {
+                        const messageText = `${subject}\n\n${body}`;
+                        navigator.clipboard.writeText(messageText).then(() => {
+                            alert('Message copied! Paste it into your email app.');
+                        }).catch(() => {
+                            // Fallback to textarea method
+                            const textarea = document.createElement('textarea');
+                            textarea.value = messageText;
+                            document.body.appendChild(textarea);
+                            textarea.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(textarea);
+                            alert('Message copied! Paste it into your email app.');
+                        });
+                    }
+                }, 2000);
+            } catch (err) {
+                console.error('Email error:', err);
+                alert('Could not open email. Please use "Copy Link" instead and paste into your email manually.');
+            }
+        });
+    }
+
+    // Download as PDF
+    const pdfBtn = document.getElementById('share-download-pdf');
+    if (pdfBtn) {
+        pdfBtn.addEventListener('click', () => {
+            console.log('PDF button clicked!');
+            if (!currentRecipeToShare) return;
+            generateRecipePDF(currentRecipeToShare);
+        });
+    }
+    
+    console.log('Share functionality initialized!');
+}
+
+// Show instructions for adding app to home screen
+function showAddToHomeScreenInstructions() {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isAndroid = /Android/.test(navigator.userAgent);
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    
+    let message = '';
+    
+    if (isIOS) {
+        if (isSafari) {
+            message = '📱 Add Recipe Book to Home Screen:\n\n' +
+                      '1. Look at the bottom of your screen\n' +
+                      '2. Tap the Share button (square with arrow pointing up)\n' +
+                      '3. Scroll down in the share menu\n' +
+                      '4. Tap "Add to Home Screen"\n' +
+                      '5. Tap "Add" in the top right\n\n' +
+                      '✨ The app icon will appear on your home screen!\n' +
+                      'When you tap it, Recipe Book opens in full-screen mode.';
+        } else {
+            message = '⚠️ Please use Safari to add Recipe Book to your home screen:\n\n' +
+                      '1. Open this page in Safari (not Chrome)\n' +
+                      '2. Tap the Share button at the bottom\n' +
+                      '3. Tap "Add to Home Screen"\n' +
+                      '4. Tap "Add"\n\n' +
+                      'Safari is required for "Add to Home Screen" on iPhone/iPad.';
+        }
+    } else if (isAndroid) {
+        message = '📱 Add Recipe Book to Home Screen:\n\n' +
+                  '1. Tap the menu button (three dots) in the top right\n' +
+                  '2. Tap "Add to Home screen" or "Install app"\n' +
+                  '3. Tap "Add" or "Install" to confirm\n\n' +
+                  '✨ The app will appear on your home screen!';
+    } else {
+        message = '📱 Add Recipe Book to Home Screen:\n\n' +
+                  'On iPhone/iPad (Safari only):\n' +
+                  '1. Tap Share button (bottom of screen)\n' +
+                  '2. Tap "Add to Home Screen"\n' +
+                  '3. Tap "Add"\n\n' +
+                  'On Android:\n' +
+                  '1. Tap menu (three dots)\n' +
+                  '2. Tap "Add to Home screen"\n' +
+                  '3. Confirm\n\n' +
+                  '✨ The app icon will appear on your home screen!';
+    }
+    
+    alert(message);
+}
+
+// generateRecipePDF lives in cookbook.js so the single recipe and the
+// full cookbook share one page layout
+
+// ================================
+// ACCOUNT MODAL (Notion-style)
+// ================================
+function openAccountModal() {
+    const overlay = document.getElementById('account-overlay');
+    const modal = document.getElementById('account-modal');
+  
+    if (!overlay || !modal) {
+      console.error('Account modal elements not found');
+      return;
+    }
+  
+    overlay.classList.remove('hidden');
+    modal.classList.remove('hidden');
+  
+    requestAnimationFrame(() => {
+      overlay.classList.add('active');
+      modal.classList.add('active');
+    });
+  
+    document.body.style.overflow = 'hidden';
+  }
+  
+  function closeAccountModal() {
+    const overlay = document.getElementById('account-overlay');
+    const modal = document.getElementById('account-modal');
+  
+    overlay.classList.remove('active');
+    modal.classList.remove('active');
+  
+    setTimeout(() => {
+      overlay.classList.add('hidden');
+      modal.classList.add('hidden');
+      document.body.style.overflow = '';
+    }, 200);
+}/* ==========================================
+   WORKSPACE SIDEBAR JAVASCRIPT
+   ========================================== */
+
+// Global state
+let workspaceSidebarOpen = false;
+let workspaceSearchOpen = false;
+
+// Initialize workspace sidebar
+function initWorkspaceSidebar() {
+    console.log('🚀 Initializing workspace sidebar...');
+    
+    const menuBtn = document.getElementById('workspace-menu-btn');
+    const sidebar = document.getElementById('workspace-sidebar');
+    const overlay = document.getElementById('workspace-sidebar-overlay');
+    const searchBtn = document.getElementById('workspace-search-btn');
+    const searchModal = document.getElementById('workspace-search-modal');
+    const searchClose = document.getElementById('workspace-search-modal-close');
+    const searchInput = document.getElementById('workspace-search-input');
+    const addTeamspaceBtn = document.getElementById('workspace-add-teamspace');
+    
+    // Open sidebar
+    if (menuBtn) {
+        menuBtn.addEventListener('click', () => {
+            workspaceSidebarOpen = true;
+            sidebar.classList.add('active');
+            overlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+    }
+    
+    // Close sidebar
+    if (overlay) {
+        overlay.addEventListener('click', closeWorkspaceSidebar);
+    }
+    
+    // Open search modal
+    if (searchBtn) {
+        searchBtn.addEventListener('click', () => {
+            openWorkspaceSearch();
+        });
+    }
+    
+    // Close search modal
+    if (searchClose) {
+        searchClose.addEventListener('click', closeWorkspaceSearch);
+    }
+    
+    // Search input
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+            performWorkspaceSearch(query);
+        });
+    }
+    
+    // Add teamspace button
+    if (addTeamspaceBtn) {
+        addTeamspaceBtn.addEventListener('click', () => {
+            closeWorkspaceSidebar();
+            // Open account page teamspaces tab
+            window.location.href = 'account.html#teamspaces';
+        });
+    }
+    
+    // Edit button - opens account page
+    const editBtn = document.getElementById('workspace-edit-btn');
+    if (editBtn) {
+        editBtn.addEventListener('click', () => {
+            closeWorkspaceSidebar();
+            window.location.href = 'account.html';
+        });
+    }
+    
+    // Dropdown button (for future use)
+    const dropdownBtn = document.getElementById('workspace-dropdown-btn');
+    if (dropdownBtn) {
+        dropdownBtn.addEventListener('click', () => {
+            console.log('Dropdown clicked - feature coming soon');
+        });
+    }
+    
+    // ESC key to close
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            if (workspaceSearchOpen) {
+                closeWorkspaceSearch();
+            } else if (workspaceSidebarOpen) {
+                closeWorkspaceSidebar();
+            }
+        }
+    });
+    
+    // Personal workspace click handler
+    const personalItem = document.getElementById('workspace-personal-item');
+    if (personalItem) {
+        personalItem.addEventListener('click', () => {
+            switchWorkspace('personal');
+        });
+    }
+    
+    // Load workspace data
+    loadWorkspaceData();
+    
+    console.log('✅ Workspace sidebar initialized');
+}
+
+// Close workspace sidebar
+function closeWorkspaceSidebar() {
+    workspaceSidebarOpen = false;
+    const sidebar = document.getElementById('workspace-sidebar');
+    const overlay = document.getElementById('workspace-sidebar-overlay');
+    
+    sidebar.classList.remove('active');
+    overlay.classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+// Open workspace search modal
+function openWorkspaceSearch() {
+    workspaceSearchOpen = true;
+    const searchModal = document.getElementById('workspace-search-modal');
+    const searchInput = document.getElementById('workspace-search-input');
+    
+    searchModal.classList.add('active');
+    searchInput.focus();
+}
+
+// Close workspace search modal
+function closeWorkspaceSearch() {
+    workspaceSearchOpen = false;
+    const searchModal = document.getElementById('workspace-search-modal');
+    const searchInput = document.getElementById('workspace-search-input');
+    
+    searchModal.classList.remove('active');
+    searchInput.value = '';
+    document.getElementById('workspace-search-results').innerHTML = '<div class="workspace-search-empty">Start typing to search...</div>';
+}
+
+// Load workspace data
+async function loadWorkspaceData() {
+    if (!currentUser) {
+        console.log('⏳ Waiting for user to load...');
+        return;
+    }
+    
+    console.log('📊 Loading workspace data...');
+    
+    // Update username in header
+    const workspaceUsername = document.getElementById('workspace-username');
+    if (workspaceUsername && currentUser.displayName) {
+        workspaceUsername.textContent = `${currentUser.displayName}'s Personal`;
+    }
+    
+    // Update avatar with user photo or keep default
+    const workspaceAvatar = document.getElementById('workspace-avatar');
+    if (workspaceAvatar) {
+        if (currentUser.photoURL) {
+            workspaceAvatar.innerHTML = `<img src="${safeImageSrc(currentUser.photoURL)}" style="width: 100%; height: 100%; border-radius: 4px; object-fit: cover;">`;
+        } else {
+            // Keep default person icon
+            workspaceAvatar.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                </svg>
+            `;
+        }
+    }
+    
+    // Update workspace name from Firestore or use default
+    const personalTitle = document.getElementById('workspace-personal-title');
+    if (personalTitle) {
+        try {
+            const userDoc = await firebase.firestore().collection('users').doc(currentUser.uid).get();
+            if (userDoc.exists) {
+                await removeStoredEmail(currentUser.uid, userDoc.data());
+            }
+            if (userDoc.exists && userDoc.data().workspaceName) {
+                personalTitle.textContent = userDoc.data().workspaceName;
+            } else {
+                personalTitle.textContent = 'My Recipe Book';
+            }
+        } catch (error) {
+            console.error('Error loading workspace name:', error);
+            personalTitle.textContent = 'My Recipe Book';
+        }
+    }
+    
+    // Load teamspaces
+    await loadWorkspaceTeamspaces();
+}
+
+// Load workspace teamspaces
+async function loadWorkspaceTeamspaces() {
+    const teamspacesContainer = document.getElementById('workspace-teamspaces');
+    if (!teamspacesContainer) return;
+    
+    try {
+        const teamspacesSnapshot = await firebase.firestore().collection('teamspaces')
+            .where('memberIds', 'array-contains', currentUser.uid)
+            .get();
+        
+        if (teamspacesSnapshot.empty) {
+            teamspacesContainer.innerHTML = '<div style="padding: 10px; font-size: 13px; color: #999;">No teamspaces yet</div>';
+            return;
+        }
+        
+        let html = '';
+        teamspacesSnapshot.forEach(doc => {
+            const teamspace = doc.data();
+            const teamspaceId = doc.id;
+            
+            // Simple item matching the personal workspace styling (no nested pages)
+            // Added data-teamspace-id for tracking and onclick for workspace switching
+            html += `
+                <div class="workspace-item" data-teamspace-id="${escapeHtml(teamspaceId)}" data-teamspace-name="${escapeHtml(teamspace.name)}">
+                    <span class="workspace-item-icon">🏠</span>
+                    <span class="workspace-item-name">${escapeHtml(teamspace.name)}</span>
+                </div>
+            `;
+        });
+        
+        teamspacesContainer.innerHTML = html;
+
+        // Wire up clicks here instead of building onclick strings out of
+        // teamspace names, which other people control
+        teamspacesContainer.querySelectorAll('.workspace-item[data-teamspace-id]').forEach(item => {
+            item.addEventListener('click', () => {
+                switchWorkspace('teamspace', item.dataset.teamspaceId, item.dataset.teamspaceName);
+            });
+        });
+        
+        // Update active state after loading
+        updateActiveWorkspaceUI();
+        
+    } catch (error) {
+        console.error('Error loading teamspaces:', error);
+        teamspacesContainer.innerHTML = '<div style="padding: 10px; font-size: 13px; color: #999;">Error loading teamspaces</div>';
+    }
+}
+
+// Toggle teamspace expansion
+function toggleWorkspaceTeamspace(teamspaceId) {
+    const chevron = document.getElementById(`chevron-${teamspaceId}`);
+    const pages = document.getElementById(`pages-${teamspaceId}`);
+    
+    if (chevron && pages) {
+        chevron.classList.toggle('expanded');
+        pages.classList.toggle('expanded');
+    }
+}
+
+// Navigate to workspace item
+function navigateToWorkspaceItem(type, id) {
+    console.log(`📍 Navigating to ${type}: ${id}`);
+    
+    closeWorkspaceSidebar();
+    
+    // Navigation logic based on type
+    switch(type) {
+        case 'recipe':
+            // Navigate to recipe view
+            window.location.href = `recipe-view.html?id=${id}`;
+            break;
+        case 'page':
+            // Navigate to specific page (would need implementation)
+            console.log('Page navigation not implemented yet');
+            break;
+        case 'teamspace-page':
+            // Navigate to teamspace page
+            console.log('Teamspace page navigation not implemented yet');
+            break;
+        default:
+            console.log('Unknown navigation type');
+    }
+}
+
+// Perform workspace search
+async function performWorkspaceSearch(query) {
+    const resultsContainer = document.getElementById('workspace-search-results');
+    
+    if (!query) {
+        resultsContainer.innerHTML = '<div class="workspace-search-empty">Start typing to search...</div>';
+        return;
+    }
+    
+    console.log('🔍 Searching for:', query);
+    
+    // Search across recipes, cuisines, ingredients, teamspaces
+    const results = {
+        recipes: [],
+        cuisines: [],
+        ingredients: [],
+        teamspaces: []
+    };
+    
+    // Search recipes
+    try {
+        const recipesSnapshot = await firebase.firestore().collection('recipes')
+            .where('userId', '==', currentUser.uid)
+            .get();
+        
+        recipesSnapshot.forEach(doc => {
+            const recipe = doc.data();
+            if (recipe.name && recipe.name.toLowerCase().includes(query.toLowerCase())) {
+                results.recipes.push({
+                    id: doc.id,
+                    name: recipe.name,
+                    icon: '🍴',
+                    path: 'Recipes'
+                });
+            }
+        });
+    } catch (error) {
+        console.error('Error searching recipes:', error);
+    }
+    
+    // Display results
+    displayWorkspaceSearchResults(results, query);
+}
+
+// Display workspace search results
+function displayWorkspaceSearchResults(results, query) {
+    const resultsContainer = document.getElementById('workspace-search-results');
+    
+    const totalResults = results.recipes.length + results.cuisines.length + 
+                         results.ingredients.length + results.teamspaces.length;
+    
+    if (totalResults === 0) {
+        resultsContainer.innerHTML = `<div class="workspace-search-empty">No results found for "${escapeHtml(query)}"</div>`;
+        return;
+    }
+    
+    let html = '';
+    
+    // Recipes
+    if (results.recipes.length > 0) {
+        html += '<div class="workspace-search-result-group">';
+        html += '<div class="workspace-search-result-group-title">RECIPES</div>';
+        results.recipes.forEach(recipe => {
+            html += `
+                <div class="workspace-search-result-item" onclick="navigateToWorkspaceItem('recipe', '${recipe.id}'); closeWorkspaceSearch();">
+                    <span class="workspace-search-result-icon">${recipe.icon}</span>
+                    <div class="workspace-search-result-content">
+                        <div class="workspace-search-result-title">${escapeHtml(recipe.name)}</div>
+                        <div class="workspace-search-result-path">${recipe.path}</div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
+    
+    resultsContainer.innerHTML = html;
+}
+
+// Make functions globally available
+window.toggleWorkspaceTeamspace = toggleWorkspaceTeamspace;
+window.navigateToWorkspaceItem = navigateToWorkspaceItem;
+window.closeWorkspaceSearch = closeWorkspaceSearch;

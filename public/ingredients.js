@@ -1,45 +1,117 @@
+// Recipes the current user is allowed to query: their own in the personal
+// workspace, or the open teamspace's. The security rules reject a query over
+// every recipe, so lookups like "which recipes use this ingredient" go through here.
+function recipesInCurrentWorkspace() {
+    const user = auth.currentUser;
+    const workspaceFilter = typeof getWorkspaceFilter === 'function' ? getWorkspaceFilter() : { type: 'personal' };
+    if (workspaceFilter.type === 'teamspace') {
+        return db.collection('recipes').where('teamspaceId', '==', workspaceFilter.teamspaceId);
+    }
+    return db.collection('recipes').where('userId', '==', user.uid);
+}
+
+// ================================
+// INGREDIENT FILE UPLOAD - DEFINED EARLY FOR GLOBAL ACCESS
+// ================================
+function triggerIngredientUpload() {
+    console.log('triggerIngredientUpload called');
+    
+    // Create a hidden file input
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'text/plain,image/png,image/jpeg,image/jpg,image/heic,application/pdf'; // Support text, images, and PDFs
+    fileInput.style.display = 'none';
+    
+    fileInput.addEventListener('change', async (e) => {
+        console.log('File selected:', e.target.files[0]);
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        await processIngredientFile(file);
+        document.body.removeChild(fileInput);
+    });
+    
+    document.body.appendChild(fileInput);
+    fileInput.click();
+    console.log('File input clicked');
+}
+
 // ================================
 // INGREDIENTS - LOAD GROUPS
 // ================================
 // Start with base default groups
-let defaultGroups = ['Fruits', 'Vegetables', 'Dairy', 'Carbs', 'Seeds', 'Other'];
+const BASE_DEFAULT_GROUPS = ['Fruits', 'Vegetables', 'Dairy', 'Meats', 'Seasonings', 'Condiments', 'Baking', 'Beverages', 'Frozen', 'Canned', 'Grains', 'Other'];
+let defaultGroups = [...BASE_DEFAULT_GROUPS];
 
-// Load user's custom groups from Firestore
+// Load groups for current workspace from Firestore
 async function loadUserGroups() {
     const user = auth.currentUser;
     if (!user) return;
     
+    // Get workspace filter
+    const workspaceFilter = typeof getWorkspaceFilter === 'function' ? getWorkspaceFilter() : { type: 'personal', userId: user.uid };
+    
     try {
-        const doc = await db.collection('userSettings').doc(user.uid).get();
-        console.log('Loading user groups - doc exists:', doc.exists);
+        let doc;
+        if (workspaceFilter.type === 'personal') {
+            // Personal workspace - load from userSettings
+            doc = await db.collection('userSettings').doc(user.uid).get();
+            console.log('Loading personal groups - doc exists:', doc.exists);
+        } else {
+            // Teamspace - load from teamspaceSettings
+            doc = await db.collection('teamspaceSettings').doc(workspaceFilter.teamspaceId).get();
+            console.log('Loading teamspace groups - doc exists:', doc.exists);
+        }
+        
         if (doc.exists && doc.data().ingredientGroups) {
             defaultGroups = doc.data().ingredientGroups;
             console.log('Loaded groups from Firestore:', defaultGroups);
         } else {
-            // First time - save default groups
+            // First time - use base defaults and save them
+            defaultGroups = [...BASE_DEFAULT_GROUPS];
             console.log('First time - saving default groups:', defaultGroups);
-            await db.collection('userSettings').doc(user.uid).set({
-                ingredientGroups: defaultGroups
-            }, { merge: true });
+            
+            if (workspaceFilter.type === 'personal') {
+                await db.collection('userSettings').doc(user.uid).set({
+                    ingredientGroups: defaultGroups
+                }, { merge: true });
+            } else {
+                await db.collection('teamspaceSettings').doc(workspaceFilter.teamspaceId).set({
+                    ingredientGroups: defaultGroups
+                }, { merge: true });
+            }
         }
     } catch (error) {
-        console.error('Error loading user groups:', error);
+        console.error('Error loading groups:', error);
+        // Reset to defaults on error
+        defaultGroups = [...BASE_DEFAULT_GROUPS];
     }
 }
 
-// Save groups to Firestore
+// Save groups to Firestore for current workspace
 async function saveUserGroups() {
     const user = auth.currentUser;
     if (!user) return;
     
+    // Get workspace filter
+    const workspaceFilter = typeof getWorkspaceFilter === 'function' ? getWorkspaceFilter() : { type: 'personal', userId: user.uid };
+    
     try {
         console.log('Saving groups to Firestore:', defaultGroups);
-        await db.collection('userSettings').doc(user.uid).set({
-            ingredientGroups: defaultGroups
-        }, { merge: true });
+        
+        if (workspaceFilter.type === 'personal') {
+            await db.collection('userSettings').doc(user.uid).set({
+                ingredientGroups: defaultGroups
+            }, { merge: true });
+        } else {
+            await db.collection('teamspaceSettings').doc(workspaceFilter.teamspaceId).set({
+                ingredientGroups: defaultGroups
+            }, { merge: true });
+        }
+        
         console.log('Groups saved successfully');
     } catch (error) {
-        console.error('Error saving user groups:', error);
+        console.error('Error saving groups:', error);
     }
 }
 
@@ -88,10 +160,22 @@ async function loadShoppingIngredients(sortBy = 'name', sortOrder = 'asc') {
     if (!user) return;
 
     try {
-        const snapshot = await db.collection('ingredients')
-            .where('userId', '==', user.uid)
-            .where('toBuy', '==', true)
-            .get();
+        // Get workspace filter
+        const workspaceFilter = typeof getWorkspaceFilter === 'function' ? getWorkspaceFilter() : { type: 'personal', userId: user.uid };
+        console.log('ðŸ“¦ Loading shopping ingredients for workspace:', workspaceFilter);
+        
+        let query;
+        if (workspaceFilter.type === 'personal') {
+            query = db.collection('ingredients')
+                .where('userId', '==', user.uid)
+                .where('toBuy', '==', true);
+        } else {
+            query = db.collection('ingredients')
+                .where('teamspaceId', '==', workspaceFilter.teamspaceId)
+                .where('toBuy', '==', true);
+        }
+        
+        const snapshot = await query.get();
 
         if (snapshot.empty) {
             tbody.innerHTML = `
@@ -140,11 +224,11 @@ async function loadShoppingIngredients(sortBy = 'name', sortOrder = 'asc') {
             row.innerHTML = `
                 <td class="ingredient-name-cell">
                     <img src="Images/fork-knife-logo.png" class="ingredient-icon">
-                    <span>${i.name || 'Untitled'}</span>
+                    <span>${escapeHtml(i.name || 'Untitled')}</span>
                 </td>
-                <td>${i.quantity || ''}</td>
-                <td>${i.category || ''}</td>
-                <td>${i.notes || ''}</td>
+                <td>${escapeHtml(i.quantity || '')}</td>
+                <td>${escapeHtml(i.category || '')}</td>
+                <td>${escapeHtml(i.notes || '')}</td>
             `;
 
             tbody.appendChild(row);
@@ -168,10 +252,19 @@ async function loadIngredientGroups() {
         // Load user's custom groups first
         await loadUserGroups();
         
-        // Fetch all ingredients for this user
-        const snapshot = await db.collection('ingredients')
-            .where('userId', '==', user.uid)
-            .get();
+        // Get workspace filter
+        const workspaceFilter = typeof getWorkspaceFilter === 'function' ? getWorkspaceFilter() : { type: 'personal', userId: user.uid };
+        console.log('ðŸ“¦ Loading ingredient groups for workspace:', workspaceFilter);
+        
+        // Fetch all ingredients for this workspace
+        let query;
+        if (workspaceFilter.type === 'personal') {
+            query = db.collection('ingredients').where('userId', '==', user.uid);
+        } else {
+            query = db.collection('ingredients').where('teamspaceId', '==', workspaceFilter.teamspaceId);
+        }
+        
+        const snapshot = await query.get();
         
         // Group ingredients by category
         const ingredientsByGroup = {};
@@ -227,7 +320,7 @@ function createIngredientGroup(name, ingredients = []) {
         <div class="group-header">
             ${dragHandleHTML}
             <div class="group-arrow"></div>
-            <span class="group-name">${name}</span>
+            <span class="group-name">${escapeHtml(name)}</span>
             <div class="group-actions">
                 ${menuHTML}
             </div>
@@ -243,7 +336,7 @@ function createIngredientGroup(name, ingredients = []) {
                         <th>Notes</th>
                     </tr>
                 </thead>
-                <tbody id="tbody-${name}">
+                <tbody id="tbody-${escapeHtml(name)}">
                 </tbody>
             </table>
         </div>
@@ -278,6 +371,14 @@ function createIngredientGroup(name, ingredients = []) {
             const confirmed = await macConfirm(`Delete the "${name}" group? All ingredients will be moved to "Other".`);
             if (confirmed) {
                 try {
+                    // Add fade out animation
+                    group.style.transition = "opacity 0.2s ease, transform 0.2s ease";
+                    group.style.opacity = "0";
+                    group.style.transform = "translateX(-10px)";
+                    
+                    // Wait for animation to complete
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    
                     // Move all ingredients in this group to "Other"
                     const snapshot = await db.collection('ingredients')
                         .where('userId', '==', auth.currentUser.uid)
@@ -299,8 +400,18 @@ function createIngredientGroup(name, ingredients = []) {
                     // Save updated groups to Firestore
                     await saveUserGroups();
                     
-                    // Reload to show updated groups
-                    await loadIngredientGroups();
+                    // Remove the group element from DOM
+                    group.remove();
+                    
+                    // Update the "Other" group count if it exists
+                    const otherGroup = document.querySelector('[data-group-name="Other"]');
+                    if (otherGroup && snapshot.size > 0) {
+                        const otherCount = otherGroup.querySelector('.group-count');
+                        if (otherCount) {
+                            const currentCount = parseInt(otherCount.textContent) || 0;
+                            otherCount.textContent = currentCount + snapshot.size;
+                        }
+                    }
                 } catch (error) {
                     console.error('Error deleting group:', error);
                     alert('Failed to delete group');
@@ -475,14 +586,14 @@ function createIngredientRow(ingredient) {
     row.innerHTML = `
         <td class="ingredient-name-cell">
             <img src="Images/fork-knife-logo.png" class="ingredient-icon">
-            <span>${ingredient.name || 'Untitled'}</span>
+            <span>${escapeHtml(ingredient.name || 'Untitled')}</span>
         </td>
         <td class="to-buy-cell">
             <input type="checkbox" class="to-buy-checkbox-table" ${ingredient.toBuy ? 'checked' : ''} data-id="${ingredient.id}">
         </td>
-        <td>${ingredient.quantity || ''}</td>
-        <td>${ingredient.category || ''}</td>
-        <td>${ingredient.notes || ''}</td>
+        <td>${escapeHtml(ingredient.quantity || '')}</td>
+        <td>${escapeHtml(ingredient.category || '')}</td>
+        <td>${escapeHtml(ingredient.notes || '')}</td>
         <td style="text-align: right; position: relative;">
             <button class="ingredient-menu-btn" data-id="${ingredient.id}">⋯</button>
             <div class="ingredient-menu hidden" id="menu-${ingredient.id}">
@@ -541,7 +652,7 @@ function createIngredientRow(ingredient) {
             setTimeout(async () => {
                 try {
                     // Find all recipes that reference this ingredient
-                    const recipesSnapshot = await db.collection('recipes')
+                    const recipesSnapshot = await recipesInCurrentWorkspace()
                         .where('relatedIngredients', 'array-contains', id)
                         .get();
                     
@@ -645,7 +756,7 @@ function openIngredientPanel() {
     const panel = document.getElementById('ingredient-side-panel');
     const overlay = document.querySelector('.side-panel-overlay');
 
-    // 🔴 STEP 3: CLEAR edit mode when opening NEW ingredient
+    // Ã°Å¸â€Â´ STEP 3: CLEAR edit mode when opening NEW ingredient
     delete panel.dataset.editingId;
     delete panel.dataset.pendingImageUrl;
 
@@ -979,8 +1090,8 @@ function loadCategoriesForDropdown() {
         item.dataset.categoryName = category.toLowerCase();
         
         item.innerHTML = `
-            <span style="font-size: 20px; opacity: 0.6; margin-right: 8px;">⋮⋮</span>
-            <span class="recipe-dropdown-item-name">${category}</span>
+            <span style="font-size: 20px; opacity: 0.6; margin-right: 8px;">â‹®â‹®</span>
+            <span class="recipe-dropdown-item-name">${escapeHtml(category)}</span>
         `;
         
         item.addEventListener('click', () => {
@@ -1044,10 +1155,19 @@ async function loadCuisinesForDropdown() {
             container.appendChild(favoritesItem);
         }
 
+        // Get workspace filter
+        const workspaceFilter = typeof getWorkspaceFilter === 'function' ? getWorkspaceFilter() : { type: 'personal', userId: user.uid };
+        
+        // Build query based on workspace type
+        let cuisinesQuery;
+        if (workspaceFilter.type === 'personal') {
+            cuisinesQuery = db.collection("cuisines").where("userId", "==", user.uid);
+        } else {
+            cuisinesQuery = db.collection("cuisines").where("teamspaceId", "==", workspaceFilter.teamspaceId);
+        }
+        
         // Load user's cuisines from Firebase
-        const snapshot = await db.collection("cuisines")
-            .where("userId", "==", user.uid)
-            .get();
+        const snapshot = await cuisinesQuery.get();
 
         if (!snapshot.empty) {
             const cuisines = [];
@@ -1071,7 +1191,7 @@ async function loadCuisinesForDropdown() {
                 
                 item.innerHTML = `
                     <img src="Images/flag-grey.png" class="recipe-dropdown-item-icon" style="width: 18px; height: 18px;">
-                    <span class="recipe-dropdown-item-name">${cuisine.name}</span>
+                    <span class="recipe-dropdown-item-name">${escapeHtml(cuisine.name)}</span>
                 `;
                 
                 item.addEventListener('click', async () => {
@@ -1331,15 +1451,15 @@ function createRecipeDropdownItem(recipeId, recipeName, isSelected) {
     
     if (isSelected) {
         item.innerHTML = `
-            <span style="font-size: 20px; opacity: 0.6; margin-right: 8px;">⋮⋮</span>
+            <span style="font-size: 20px; opacity: 0.6; margin-right: 8px;">â‹®â‹®</span>
             <img src="Images/fork-knife-logo.png" class="recipe-dropdown-item-icon">
-            <span class="recipe-dropdown-item-name">${recipeName}</span>
-            <div class="recipe-dropdown-item-add" style="border-color: #d32f2f; color: #d32f2f;">−</div>
+            <span class="recipe-dropdown-item-name">${escapeHtml(recipeName)}</span>
+            <div class="recipe-dropdown-item-add" style="border-color: #d32f2f; color: #d32f2f;">Ã¢Ë†â€™</div>
         `;
     } else {
         item.innerHTML = `
             <img src="Images/fork-knife-logo.png" class="recipe-dropdown-item-icon">
-            <span class="recipe-dropdown-item-name">${recipeName}</span>
+            <span class="recipe-dropdown-item-name">${escapeHtml(recipeName)}</span>
             <div class="recipe-dropdown-item-add">+</div>
         `;
     }
@@ -1557,16 +1677,16 @@ function createIngredientDropdownItem(ingredientId, ingredientName, isSelected, 
     
     if (isSelected) {
         item.innerHTML = `
-            <span style="font-size: 20px; opacity: 0.6; margin-right: 8px;">⋮⋮</span>
-            <img src="${ingredientIcon}" class="recipe-dropdown-item-icon">
-            <span class="recipe-dropdown-item-name">${ingredientName}</span>
+            <span style="font-size: 20px; opacity: 0.6; margin-right: 8px;">â‹®â‹®</span>
+            <img src="${safeImageSrc(ingredientIcon, 'Images/apple.png')}" class="recipe-dropdown-item-icon">
+            <span class="recipe-dropdown-item-name">${escapeHtml(ingredientName)}</span>
             <button class="ingredient-buy-list-btn" style="margin-right: 8px; padding: 4px 12px; font-size: 12px; border: 1px solid #ddd; border-radius: 4px; background: ${toBuy ? '#4285f4' : '#f0f0f0'}; color: ${toBuy ? '#fff' : '#333'}; cursor: pointer; white-space: nowrap;">${toBuy ? 'Remove from buy list' : 'Add to buy list'}</button>
-            <div class="recipe-dropdown-item-add" style="border-color: #d32f2f; color: #d32f2f;">−</div>
+            <div class="recipe-dropdown-item-add" style="border-color: #d32f2f; color: #d32f2f;">Ã¢Ë†â€™</div>
         `;
     } else {
         item.innerHTML = `
-            <img src="${ingredientIcon}" class="recipe-dropdown-item-icon">
-            <span class="recipe-dropdown-item-name">${ingredientName}</span>
+            <img src="${safeImageSrc(ingredientIcon, 'Images/apple.png')}" class="recipe-dropdown-item-icon">
+            <span class="recipe-dropdown-item-name">${escapeHtml(ingredientName)}</span>
             <div class="recipe-dropdown-item-add">+</div>
         `;
     }
@@ -1898,7 +2018,7 @@ async function saveIngredient() {
             ingredientData.imageOffsetY = parseFloat(preview.dataset.offset || 0);
         }
 
-        // 🟢 EDIT EXISTING INGREDIENT
+        // Ã°Å¸Å¸Â¢ EDIT EXISTING INGREDIENT
         if (editingId) {
             await db.collection('ingredients').doc(editingId).update(ingredientData);
 
@@ -1911,12 +2031,23 @@ async function saveIngredient() {
             return editingId;
         }
 
-        // 🔵 CREATE NEW INGREDIENT
+
+        // ðŸ”µ CREATE NEW INGREDIENT
+        // Get workspace filter
+        const workspaceFilter = typeof getWorkspaceFilter === 'function' ? getWorkspaceFilter() : { type: 'personal', userId: user.uid };
+        
         const finalIngredientData = {
             ...ingredientData,
             userId: user.uid,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         };
+        
+        // Add teamspaceId if in a teamspace
+        if (workspaceFilter.type === 'teamspace') {
+            finalIngredientData.teamspaceId = workspaceFilter.teamspaceId;
+        } else {
+            finalIngredientData.teamspaceId = null;
+        }
         
         // Clean up temporary data
         delete panel.dataset.pendingImageUrl;
@@ -2087,7 +2218,7 @@ async function deleteIngredient(ingredientId, row) {
         setTimeout(async () => {
             try {
                 // Find all recipes that reference this ingredient
-                const recipesSnapshot = await db.collection('recipes')
+                const recipesSnapshot = await recipesInCurrentWorkspace()
                     .where('relatedIngredients', 'array-contains', ingredientId)
                     .get();
                 
@@ -2121,4 +2252,791 @@ async function deleteIngredient(ingredientId, row) {
         console.error('Error deleting ingredient:', error);
         alert('Failed to delete ingredient');
     }
+}
+
+
+// ================================
+// INGREDIENT FILE UPLOAD
+// ================================
+function triggerIngredientUpload() {
+    console.log('triggerIngredientUpload called');
+    
+    // Create a hidden file input
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'text/plain,image/png,image/jpeg,image/jpg,image/heic,application/pdf'; // Support text, images, and PDFs
+    fileInput.style.display = 'none';
+    
+    fileInput.addEventListener('change', async (e) => {
+        console.log('File selected:', e.target.files[0]);
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        await processIngredientFile(file);
+        document.body.removeChild(fileInput);
+    });
+    
+    document.body.appendChild(fileInput);
+    fileInput.click();
+    console.log('File input clicked');
+}
+
+async function processIngredientFile(file) {
+    // Show loading overlay
+    showUploadLoadingOverlay();
+    
+    try {
+        let extractedText = '';
+        
+        // Handle different file types
+        if (file.type === 'text/plain') {
+            extractedText = await readTextFile(file);
+        } else if (file.type === 'application/pdf') {
+            extractedText = await extractTextFromPDF(file);
+        } else if (file.type.startsWith('image/')) {
+            extractedText = await extractTextFromImage(file);
+        }
+        
+        if (!extractedText) {
+            hideUploadLoadingOverlay();
+            alert('Could not extract text from file. Please try a different file.');
+            return;
+        }
+        
+        // Use AI to parse ingredients
+        const ingredients = await parseIngredientsWithAI(extractedText);
+        
+        if (!ingredients || ingredients.length === 0) {
+            hideUploadLoadingOverlay();
+            alert('No ingredients found in the file. Please try a different file.');
+            return;
+        }
+        
+        // Save ingredients to Firebase
+        await saveExtractedIngredients(ingredients);
+        
+        // Hide loading and show success
+        hideUploadLoadingOverlay();
+        showUploadSuccessMessage(`Successfully added ${ingredients.length} ingredient${ingredients.length > 1 ? 's' : ''}!`);
+        
+        // Refresh the ingredient view
+        await refreshAllIngredientViews();
+        
+    } catch (error) {
+        console.error('Error processing file:', error);
+        hideUploadLoadingOverlay();
+        alert('Error processing file. Please try again.');
+    }
+}
+
+function readTextFile(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = reject;
+        reader.readAsText(file);
+    });
+}
+
+async function extractTextFromPDF(file) {
+    console.log('Extracting text from PDF...');
+    
+    try {
+        // Read file as array buffer
+        const arrayBuffer = await file.arrayBuffer();
+        
+        // Load PDF document
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        console.log(`PDF loaded: ${pdf.numPages} pages`);
+        
+        let fullText = '';
+        
+        // Extract text from each page
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+            const page = await pdf.getPage(pageNum);
+            const textContent = await page.getTextContent();
+            
+            // Group text items by vertical position to detect lines
+            const textByLine = {};
+            textContent.items.forEach(item => {
+                const y = Math.round(item.transform[5]); // Y position
+                if (!textByLine[y]) {
+                    textByLine[y] = [];
+                }
+                textByLine[y].push(item.str);
+            });
+            
+            // Sort by Y position (top to bottom) and join
+            const sortedY = Object.keys(textByLine).sort((a, b) => b - a); // Descending (top to bottom)
+            for (const y of sortedY) {
+                const lineText = textByLine[y].join(' ').trim();
+                if (lineText) {
+                    fullText += lineText + '\n';
+                }
+            }
+        }
+        
+        console.log('PDF text extraction completed');
+        console.log('Extracted text preview:', fullText.substring(0, 200));
+        return fullText;
+    } catch (error) {
+        console.error('Error extracting text from PDF:', error);
+        alert('Error reading PDF. Please try a different file.');
+        return null;
+    }
+}
+
+async function extractTextFromImage(file) {
+    console.log('Extracting text from image using OCR...');
+    
+    try {
+        let imageToProcess = file;
+        
+        // Convert HEIC to JPEG if needed
+        if (file.type === 'image/heic' || file.name.toLowerCase().endsWith('.heic')) {
+            console.log('Converting HEIC to JPEG...');
+            try {
+                const convertedBlob = await heic2any({
+                    blob: file,
+                    toType: 'image/jpeg',
+                    quality: 0.9
+                });
+                imageToProcess = new File([convertedBlob], file.name.replace(/\.heic$/i, '.jpg'), {
+                    type: 'image/jpeg'
+                });
+                console.log('HEIC conversion completed');
+            } catch (heicError) {
+                console.error('Error converting HEIC:', heicError);
+                alert('Error converting HEIC image. Please try a different format (PNG or JPEG).');
+                return null;
+            }
+        }
+        
+        // Use Tesseract.js for OCR
+        const result = await Tesseract.recognize(
+            imageToProcess,
+            'eng',
+            {
+                logger: m => {
+                    if (m.status === 'recognizing text') {
+                        console.log(`OCR Progress: ${Math.round(m.progress * 100)}%`);
+                    }
+                }
+            }
+        );
+        
+        console.log('OCR completed successfully');
+        return result.data.text;
+    } catch (error) {
+        console.error('Error extracting text from image:', error);
+        alert('Error reading image. Please try a different file.');
+        return null;
+    }
+}
+
+async function parseIngredientsWithAI(text) {
+    console.log('Parsing ingredients from text...');
+    console.log('Raw text:', text.substring(0, 200) + '...');
+    
+    // First, try to intelligently split the text
+    // PDFs often don't have proper line breaks, so we need to look for patterns
+    let lines = [];
+    
+    // Split on newlines first
+    let rawLines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    
+    // If we only got 1-2 lines but the text is long, it's probably a PDF with no line breaks
+    // Try to split on common delimiters
+    if (rawLines.length < 3 && text.length > 100) {
+        console.log('Detected single-line text, attempting smart splitting...');
+        // Try splitting on " - " which is common in lists
+        const dashSplit = text.split(/\s-\s+/).map(s => s.trim()).filter(s => s.length > 0);
+        if (dashSplit.length > 2) {
+            rawLines = dashSplit;
+            console.log(`Split into ${dashSplit.length} parts using dashes`);
+        }
+    }
+    
+    // Filter out headers and junk
+    lines = rawLines.filter(line => {
+        const lower = line.toLowerCase().trim();
+        // Skip common headers - be more aggressive, allow spaces/words
+        if (lower.match(/^(shopping|grocery|to.?do).*(list|items?)$/i)) {
+            console.log(`Filtered out header: "${line}"`);
+            return false;
+        }
+        if (lower.match(/^(shopping|grocery|list|ingredient|recipe|item|needed|buy|todo|to.?do)s?:?$/i)) {
+            console.log(`Filtered out header: "${line}"`);
+            return false;
+        }
+        // Skip lines that are just separators
+        if (lower.match(/^[=#\-_*]+$/)) return false;
+        // Skip very short lines (likely not ingredients)
+        if (line.length < 2) return false;
+        return true;
+    });
+    
+    console.log(`Processing ${lines.length} lines...`);
+    
+    const ingredients = [];
+    
+    for (const line of lines) {
+        // Remove leading list markers: bullets (â€¢), dashes (-), numbers (1., 2.), asterisks (*)
+        let cleanLine = line.replace(/^[\sâ€¢\-*\d.)]+\s*/, '').trim();
+        if (!cleanLine) continue;
+        
+        // Try to parse quantity and name
+        const ingredient = parseIngredientLine(cleanLine);
+        if (ingredient && ingredient.name) {
+            // Additional validation - skip if name is too generic or looks like a header
+            const nameLower = ingredient.name.toLowerCase();
+            if (nameLower.match(/^(shopping|grocery|list|ingredient|recipe|item|needed|buy|todo|to.?do)s?$/i)) {
+                console.log(`Skipped header-like ingredient: "${ingredient.name}"`);
+                continue;
+            }
+            
+            // Skip if the name is suspiciously long (probably captured multiple items)
+            if (ingredient.name.length > 100) {
+                console.log(`Skipping suspiciously long ingredient: ${ingredient.name.substring(0, 50)}...`);
+                continue;
+            }
+            
+            ingredients.push(ingredient);
+            console.log(`âœ“ Parsed: "${ingredient.name}" qty: "${ingredient.quantity || 'none'}" notes: "${ingredient.notes || 'none'}"`);
+        }
+    }
+    
+    console.log(`Final result: ${ingredients.length} ingredients`);
+    return ingredients;
+}
+
+function parseIngredientLine(line) {
+    // Expected formats:
+    // "Strawberries"
+    // "Vegetables (1)"
+    // "Steak (2) organic"
+    // "Soda (1) fanta"
+    // Also support traditional: "2 cups flour"
+    
+    let name = '';
+    let quantity = '';
+    let notes = '';
+    
+    // First, extract everything in parentheses as potential quantity
+    const parenMatch = line.match(/^([^(]+)\(([^)]+)\)(.*)$/);
+    
+    if (parenMatch) {
+        // Format: "ingredient (quantity) notes"
+        name = parenMatch[1].trim();
+        quantity = parenMatch[2].trim();
+        notes = parenMatch[3].trim() || null;
+    } else {
+        // No parentheses - check if it starts with a number (traditional format)
+        // "2 cups flour"
+        const quantityMatch = line.match(/^([\d./]+\s*(?:cup|cups|lb|lbs|pound|pounds|oz|ounce|ounces|tsp|teaspoon|teaspoons|tbsp|tablespoon|tablespoons|g|kg|ml|l|can|cans|clove|cloves|medium|large|small)?s?)\s+(.+)$/i);
+        
+        if (quantityMatch) {
+            quantity = quantityMatch[1].trim();
+            name = quantityMatch[2].trim();
+        } else {
+            // No quantity at all, entire line is the name
+            name = line.trim();
+        }
+    }
+    
+    // Clean up the name
+    name = name.replace(/\s+/g, ' ').trim();
+    
+    // Skip if name is too short or looks invalid
+    if (name.length < 2) return null;
+    
+    return {
+        name: name,
+        quantity: quantity || null,
+        notes: notes || null
+    };
+}
+
+async function saveExtractedIngredients(ingredients) {
+    const user = auth.currentUser;
+    if (!user) return;
+    
+    const batch = db.batch();
+    
+    for (const ingredient of ingredients) {
+        // Auto-categorize based on ingredient name
+        const category = categorizeIngredient(ingredient.name);
+        
+        const ingredientData = {
+            name: ingredient.name,
+            category: category,
+            quantity: ingredient.quantity || null,
+            notes: ingredient.notes || null,
+            toBuy: true, // Default to adding to shopping list
+            recipes: [],
+            userId: user.uid,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        const docRef = db.collection('ingredients').doc();
+        batch.set(docRef, ingredientData);
+    }
+    
+    await batch.commit();
+}
+
+function categorizeIngredient(name) {
+    const nameLower = name.toLowerCase();
+    
+    // Comprehensive keyword mappings for all possible categories
+    const categoryKeywords = {
+        'Fruits': [
+            'apple', 'apples', 'banana', 'bananas', 'orange', 'oranges', 'strawberry', 'strawberries',
+            'blueberry', 'blueberries', 'raspberry', 'raspberries', 'grape', 'grapes', 'lemon', 'lemons',
+            'lime', 'limes', 'cherry', 'cherries', 'peach', 'peaches', 'pear', 'pears', 'plum', 'plums',
+            'mango', 'mangos', 'pineapple', 'watermelon', 'melon', 'cantaloupe', 'kiwi', 'papaya',
+            'avocado', 'avocados', 'coconut', 'berry', 'berries', 'fruit', 'grapefruit', 'tangerine',
+            'nectarine', 'apricot', 'fig', 'date', 'dates', 'raisin', 'raisins', 'cranberry', 'cranberries'
+        ],
+        'Vegetables': [
+            'carrot', 'carrots', 'broccoli', 'cauliflower', 'spinach', 'kale', 'lettuce', 'cabbage',
+            'tomato', 'tomatoes', 'cucumber', 'cucumbers', 'bell pepper', 'onion', 'onions',
+            'garlic', 'potato', 'potatoes', 'sweet potato', 'celery', 'zucchini', 'squash', 'pumpkin',
+            'eggplant', 'mushroom', 'mushrooms', 'corn', 'peas', 'green beans', 'asparagus', 'artichoke',
+            'beet', 'beets', 'radish', 'turnip', 'parsnip', 'leek', 'scallion', 'shallot', 'basil', 'cilantro',
+            'parsley', 'arugula', 'bok choy', 'brussels sprouts', 'vegetable', 'veggie', 'jalapeno',
+            'poblano', 'serrano', 'habanero', 'chili', 'green onion', 'spring onion'
+        ],
+        'Dairy': [
+            'milk', 'cream', 'butter', 'cheese', 'cheddar', 'mozzarella', 'parmesan', 'feta', 'goat cheese',
+            'yogurt', 'sour cream', 'cottage cheese', 'ricotta', 'cream cheese', 'whipped cream', 'half and half',
+            'buttermilk', 'evaporated milk', 'condensed milk', 'dairy', 'swiss', 'provolone', 'brie',
+            'blue cheese', 'gorgonzola', 'monterey jack', 'colby', 'american cheese', 'string cheese',
+            'greek yogurt', 'heavy cream', 'light cream', 'clotted cream'
+        ],
+        'Meats': [  // Handles both "Meat" and "Meats"
+            'chicken', 'beef', 'pork', 'turkey', 'lamb', 'veal', 'duck', 'steak', 'ground beef',
+            'ground turkey', 'bacon', 'sausage', 'ham', 'salami', 'prosciutto', 'pepperoni',
+            'chicken breast', 'chicken thigh', 'drumstick', 'wings', 'meat', 'poultry',
+            'ribeye', 'sirloin', 'tenderloin', 'brisket', 'ribs', 'pork chop', 'chorizo',
+            'bratwurst', 'hot dog', 'frankfurter', 'pastrami', 'corned beef', 'venison',
+            'goat', 'rabbit', 'quail', 'pheasant', 'goose', 'canadian bacon'
+        ],
+        'Meat': [  // Alias for Meats
+            'chicken', 'beef', 'pork', 'turkey', 'lamb', 'veal', 'duck', 'steak', 'ground beef',
+            'ground turkey', 'bacon', 'sausage', 'ham', 'salami', 'prosciutto', 'pepperoni',
+            'chicken breast', 'chicken thigh', 'drumstick', 'wings', 'meat', 'poultry',
+            'ribeye', 'sirloin', 'tenderloin', 'brisket', 'ribs', 'pork chop', 'chorizo',
+            'bratwurst', 'hot dog', 'frankfurter', 'pastrami', 'corned beef', 'venison',
+            'goat', 'rabbit', 'quail', 'pheasant', 'goose', 'canadian bacon'
+        ],
+        'Seafood': [  // Separate category - only used if user creates it
+            'fish', 'salmon', 'tuna', 'cod', 'halibut', 'tilapia', 'shrimp', 'prawns', 'crab',
+            'lobster', 'scallops', 'mussels', 'clams', 'oysters', 'squid', 'octopus', 'seafood',
+            'catfish', 'trout', 'bass', 'snapper', 'mackerel', 'sardines', 'anchovies',
+            'swordfish', 'mahi mahi', 'grouper', 'flounder', 'sole', 'haddock', 'perch',
+            'crayfish', 'calamari', 'caviar', 'roe', 'imitation crab', 'surimi'
+        ],
+        'Seasonings': [
+            'salt', 'pepper', 'spice', 'spices', 'seasoning', 'cumin', 'paprika', 'oregano', 'thyme',
+            'rosemary', 'sage', 'cinnamon', 'nutmeg', 'ginger', 'turmeric', 'curry', 'chili powder',
+            'cayenne', 'garlic powder', 'onion powder', 'bay leaf', 'vanilla', 'extract', 'herbs',
+            'dill', 'tarragon', 'marjoram', 'cardamom', 'cloves', 'allspice', 'anise', 'fennel',
+            'coriander', 'mustard seed', 'celery seed', 'caraway', 'saffron', 'white pepper',
+            'black pepper', 'red pepper flakes', 'italian seasoning', 'poultry seasoning',
+            'cajun seasoning', 'taco seasoning', 'everything bagel seasoning', 'msg', 'bouillon'
+        ],
+        'Oils': [  // Separate category - only used if user creates it
+            'oil', 'olive oil', 'vegetable oil', 'canola oil', 'coconut oil', 'sesame oil',
+            'avocado oil', 'peanut oil', 'sunflower oil', 'grapeseed oil', 'walnut oil',
+            'almond oil', 'flaxseed oil', 'safflower oil', 'corn oil', 'palm oil',
+            'extra virgin olive oil', 'light olive oil', 'cooking spray', 'pam', 'butter spray'
+        ],
+        'Condiments': [
+            'sauce', 'ketchup', 'mustard', 'mayo', 'mayonnaise', 'relish', 'pickle', 'pickles',
+            'soy sauce', 'vinegar', 'hot sauce', 'bbq sauce', 'worcestershire', 'sriracha',
+            'ranch', 'dressing', 'salsa', 'condiment', 'tartar sauce', 'cocktail sauce',
+            'fish sauce', 'hoisin', 'oyster sauce', 'teriyaki', 'marinara', 'alfredo',
+            'pesto', 'hummus', 'tahini', 'guacamole', 'chimichurri', 'aioli', 'remoulade',
+            'balsamic', 'apple cider vinegar', 'rice vinegar', 'red wine vinegar', 'white vinegar',
+            'dijon', 'yellow mustard', 'honey mustard', 'spicy mustard', 'tabasco', 'buffalo sauce'
+        ],
+        'Baking': [
+            'sugar', 'brown sugar', 'powdered sugar', 'baking soda', 'baking powder', 'yeast',
+            'cornstarch', 'cocoa', 'chocolate chips', 'honey', 'maple syrup', 'molasses', 'agave',
+            'confectioners sugar', 'icing sugar', 'granulated sugar', 'cane sugar', 'turbinado',
+            'demerara', 'coconut sugar', 'stevia', 'splenda', 'cake flour', 'bread flour',
+            'all-purpose flour', 'whole wheat flour', 'almond flour', 'coconut flour',
+            'gelatin', 'agar', 'pectin', 'cream of tartar', 'vanilla bean', 'chocolate bar',
+            'cocoa powder', 'white chocolate', 'dark chocolate', 'semi-sweet', 'butterscotch',
+            'caramel', 'sprinkles', 'food coloring', 'fondant', 'marzipan', 'flour'
+        ],
+        'Beverages': [
+            'water', 'coffee', 'tea', 'juice', 'soda', 'pop', 'beer', 'wine', 'liquor', 'vodka',
+            'whiskey', 'rum', 'gin', 'tequila', 'champagne', 'cider', 'lemonade', 'iced tea',
+            'green tea', 'black tea', 'herbal tea', 'kombucha', 'sports drink', 'energy drink',
+            'coconut water', 'almond milk', 'oat milk', 'soy milk', 'rice milk', 'beverage',
+            'drink', 'drinks', 'espresso', 'cappuccino', 'latte', 'smoothie'
+        ],
+        'Drinks': [  // Alias for Beverages
+            'water', 'coffee', 'tea', 'juice', 'soda', 'pop', 'beer', 'wine', 'liquor', 'vodka',
+            'whiskey', 'rum', 'gin', 'tequila', 'champagne', 'cider', 'lemonade', 'iced tea',
+            'green tea', 'black tea', 'herbal tea', 'kombucha', 'sports drink', 'energy drink',
+            'coconut water', 'almond milk', 'oat milk', 'soy milk', 'rice milk', 'beverage',
+            'drink', 'drinks', 'espresso', 'cappuccino', 'latte', 'smoothie'
+        ],
+        'Frozen': [
+            'frozen', 'ice cream', 'sorbet', 'gelato', 'popsicle', 'frozen pizza', 'frozen vegetables',
+            'frozen fruit', 'frozen dinner', 'tv dinner', 'frozen yogurt', 'ice', 'ice cubes',
+            'frozen peas', 'frozen corn', 'frozen berries', 'frozen chicken', 'frozen shrimp'
+        ],
+        'Canned': [
+            'canned', 'can', 'jar', 'jarred', 'canned beans', 'canned tomatoes', 'canned soup',
+            'canned tuna', 'canned corn', 'canned peas', 'preserved', 'packaged', 'canned chicken',
+            'canned vegetables', 'canned fruit', 'canned olives', 'pickled', 'jarred sauce'
+        ],
+        'Grains': [
+            'grain', 'grains', 'wheat', 'barley', 'rye', 'millet', 'amaranth', 'buckwheat',
+            'spelt', 'kamut', 'teff', 'sorghum', 'wild rice', 'brown rice', 'white rice',
+            'jasmine rice', 'basmati rice', 'arborio rice', 'bread', 'pasta', 'rice', 'noodles', 
+            'spaghetti', 'penne', 'rigatoni', 'linguine', 'fettuccine', 'flour', 'tortilla', 
+            'tortillas', 'bagel', 'bagels', 'roll', 'rolls', 'baguette', 'pita', 'quinoa', 
+            'couscous', 'oats', 'oatmeal', 'cereal', 'crackers', 'bun', 'buns', 'croissant', 
+            'muffin', 'pancake', 'waffle', 'macaroni', 'lasagna', 'ravioli', 'angel hair', 
+            'orzo', 'fusilli', 'farfalle', 'rotini', 'vermicelli', 'ramen', 'udon', 'soba', 
+            'bulgur', 'farro', 'polenta', 'grits', 'cornmeal'
+        ],
+        'Carbs': [  // Separate category - only used if user creates it
+            'bread', 'pasta', 'rice', 'noodles', 'spaghetti', 'penne', 'rigatoni', 'linguine', 'fettuccine',
+            'flour', 'tortilla', 'tortillas', 'bagel', 'bagels', 'roll', 'rolls', 'baguette', 'pita',
+            'quinoa', 'couscous', 'oats', 'oatmeal', 'cereal', 'crackers', 'chips', 'pretzels',
+            'bun', 'buns', 'croissant', 'muffin', 'pancake', 'waffle', 'macaroni', 'lasagna', 'ravioli',
+            'angel hair', 'orzo', 'fusilli', 'farfalle', 'rotini', 'vermicelli', 'ramen', 'udon',
+            'soba', 'bulgur', 'farro', 'polenta', 'grits', 'cornmeal'
+        ],
+        'Seeds': [  // Separate category - only used if user creates it
+            'seeds', 'sunflower seeds', 'pumpkin seeds', 'chia seeds', 'flax seeds', 'sesame seeds',
+            'poppy seeds', 'hemp seeds', 'nuts', 'almonds', 'walnuts', 'pecans', 'cashews', 'peanuts',
+            'pistachios', 'hazelnuts', 'macadamia', 'pine nuts', 'peanut butter', 'almond butter',
+            'brazil nuts', 'chestnuts', 'tahini'
+        ],
+        'Nuts': [  // Separate category - only used if user creates it
+            'nuts', 'almonds', 'walnuts', 'pecans', 'cashews', 'peanuts', 'pistachios', 
+            'hazelnuts', 'macadamia', 'pine nuts', 'peanut butter', 'almond butter',
+            'brazil nuts', 'chestnuts', 'tahini', 'nutella'
+        ],
+        'Legumes': [  // Separate category - only used if user creates it
+            'beans', 'lentils', 'chickpeas', 'black beans', 'kidney beans', 'pinto beans',
+            'navy beans', 'lima beans', 'cannellini', 'garbanzo', 'green lentils', 'red lentils',
+            'split peas', 'black-eyed peas', 'edamame', 'soybeans', 'tofu', 'tempeh', 'legume'
+        ],
+        'Snacks': [  // Separate category - only used if user creates it
+            'chips', 'popcorn', 'pretzels', 'crackers', 'cookies', 'candy', 'chocolate bar',
+            'granola bar', 'protein bar', 'trail mix', 'jerky', 'snack', 'goldfish',
+            'cheez-its', 'doritos', 'lays', 'pringles', 'oreos'
+        ],
+        'Fruit': [  // Singular alias for Fruits
+            'apple', 'apples', 'banana', 'bananas', 'orange', 'oranges', 'strawberry', 'strawberries',
+            'blueberry', 'blueberries', 'raspberry', 'raspberries', 'grape', 'grapes', 'lemon', 'lemons',
+            'lime', 'limes', 'cherry', 'cherries', 'peach', 'peaches', 'pear', 'pears', 'plum', 'plums',
+            'mango', 'mangos', 'pineapple', 'watermelon', 'melon', 'cantaloupe', 'kiwi', 'papaya',
+            'avocado', 'avocados', 'coconut', 'berry', 'berries', 'fruit', 'grapefruit', 'tangerine',
+            'nectarine', 'apricot', 'fig', 'date', 'dates', 'raisin', 'raisins', 'cranberry', 'cranberries'
+        ],
+        'Veggies': [  // Informal alias for Vegetables
+            'carrot', 'carrots', 'broccoli', 'cauliflower', 'spinach', 'kale', 'lettuce', 'cabbage',
+            'tomato', 'tomatoes', 'cucumber', 'cucumbers', 'bell pepper', 'onion', 'onions',
+            'garlic', 'potato', 'potatoes', 'sweet potato', 'celery', 'zucchini', 'squash', 'pumpkin',
+            'eggplant', 'mushroom', 'mushrooms', 'corn', 'peas', 'green beans', 'asparagus', 'artichoke',
+            'beet', 'beets', 'radish', 'turnip', 'parsnip', 'leek', 'scallion', 'shallot', 'basil', 'cilantro',
+            'parsley', 'arugula', 'bok choy', 'brussels sprouts', 'vegetable', 'veggie', 'jalapeno',
+            'poblano', 'serrano', 'habanero', 'chili', 'green onion', 'spring onion'
+        ],
+        'Vegetable': [  // Singular alias for Vegetables
+            'carrot', 'carrots', 'broccoli', 'cauliflower', 'spinach', 'kale', 'lettuce', 'cabbage',
+            'tomato', 'tomatoes', 'cucumber', 'cucumbers', 'bell pepper', 'onion', 'onions',
+            'garlic', 'potato', 'potatoes', 'sweet potato', 'celery', 'zucchini', 'squash', 'pumpkin',
+            'eggplant', 'mushroom', 'mushrooms', 'corn', 'peas', 'green beans', 'asparagus', 'artichoke',
+            'beet', 'beets', 'radish', 'turnip', 'parsnip', 'leek', 'scallion', 'shallot', 'basil', 'cilantro',
+            'parsley', 'arugula', 'bok choy', 'brussels sprouts', 'vegetable', 'veggie', 'jalapeno',
+            'poblano', 'serrano', 'habanero', 'chili', 'green onion', 'spring onion'
+        ],
+        'Protein': [  // Synonym for Meats (includes seafood)
+            'chicken', 'beef', 'pork', 'turkey', 'lamb', 'veal', 'duck', 'steak', 'ground beef',
+            'ground turkey', 'bacon', 'sausage', 'ham', 'salami', 'prosciutto', 'pepperoni',
+            'chicken breast', 'chicken thigh', 'drumstick', 'wings', 'meat', 'poultry',
+            'ribeye', 'sirloin', 'tenderloin', 'brisket', 'ribs', 'pork chop', 'chorizo',
+            'bratwurst', 'hot dog', 'frankfurter', 'pastrami', 'corned beef', 'venison',
+            'goat', 'rabbit', 'quail', 'pheasant', 'goose', 'canadian bacon',
+            'fish', 'salmon', 'tuna', 'cod', 'halibut', 'tilapia', 'shrimp', 'prawns', 'crab',
+            'lobster', 'scallops', 'mussels', 'clams', 'oysters', 'squid', 'octopus', 'seafood',
+            'catfish', 'trout', 'bass', 'snapper', 'mackerel', 'sardines', 'anchovies',
+            'swordfish', 'mahi mahi', 'grouper', 'flounder', 'sole', 'haddock', 'perch',
+            'crayfish', 'calamari', 'caviar', 'roe', 'imitation crab', 'surimi'
+        ],
+        'Proteins': [  // Plural of Protein
+            'chicken', 'beef', 'pork', 'turkey', 'lamb', 'veal', 'duck', 'steak', 'ground beef',
+            'ground turkey', 'bacon', 'sausage', 'ham', 'salami', 'prosciutto', 'pepperoni',
+            'chicken breast', 'chicken thigh', 'drumstick', 'wings', 'meat', 'poultry',
+            'ribeye', 'sirloin', 'tenderloin', 'brisket', 'ribs', 'pork chop', 'chorizo',
+            'bratwurst', 'hot dog', 'frankfurter', 'pastrami', 'corned beef', 'venison',
+            'goat', 'rabbit', 'quail', 'pheasant', 'goose', 'canadian bacon',
+            'fish', 'salmon', 'tuna', 'cod', 'halibut', 'tilapia', 'shrimp', 'prawns', 'crab',
+            'lobster', 'scallops', 'mussels', 'clams', 'oysters', 'squid', 'octopus', 'seafood',
+            'catfish', 'trout', 'bass', 'snapper', 'mackerel', 'sardines', 'anchovies',
+            'swordfish', 'mahi mahi', 'grouper', 'flounder', 'sole', 'haddock', 'perch',
+            'crayfish', 'calamari', 'caviar', 'roe', 'imitation crab', 'surimi'
+        ],
+        'Seasoning': [  // Singular alias for Seasonings
+            'salt', 'pepper', 'spice', 'spices', 'seasoning', 'cumin', 'paprika', 'oregano', 'thyme',
+            'rosemary', 'sage', 'cinnamon', 'nutmeg', 'ginger', 'turmeric', 'curry', 'chili powder',
+            'cayenne', 'garlic powder', 'onion powder', 'bay leaf', 'vanilla', 'extract', 'herbs',
+            'dill', 'tarragon', 'marjoram', 'cardamom', 'cloves', 'allspice', 'anise', 'fennel',
+            'coriander', 'mustard seed', 'celery seed', 'caraway', 'saffron', 'white pepper',
+            'black pepper', 'red pepper flakes', 'italian seasoning', 'poultry seasoning',
+            'cajun seasoning', 'taco seasoning', 'everything bagel seasoning', 'msg', 'bouillon'
+        ],
+        'Spices': [  // Synonym for Seasonings
+            'salt', 'pepper', 'spice', 'spices', 'seasoning', 'cumin', 'paprika', 'oregano', 'thyme',
+            'rosemary', 'sage', 'cinnamon', 'nutmeg', 'ginger', 'turmeric', 'curry', 'chili powder',
+            'cayenne', 'garlic powder', 'onion powder', 'bay leaf', 'vanilla', 'extract', 'herbs',
+            'dill', 'tarragon', 'marjoram', 'cardamom', 'cloves', 'allspice', 'anise', 'fennel',
+            'coriander', 'mustard seed', 'celery seed', 'caraway', 'saffron', 'white pepper',
+            'black pepper', 'red pepper flakes', 'italian seasoning', 'poultry seasoning',
+            'cajun seasoning', 'taco seasoning', 'everything bagel seasoning', 'msg', 'bouillon'
+        ],
+        'Herbs': [  // Synonym for Seasonings
+            'salt', 'pepper', 'spice', 'spices', 'seasoning', 'cumin', 'paprika', 'oregano', 'thyme',
+            'rosemary', 'sage', 'cinnamon', 'nutmeg', 'ginger', 'turmeric', 'curry', 'chili powder',
+            'cayenne', 'garlic powder', 'onion powder', 'bay leaf', 'vanilla', 'extract', 'herbs',
+            'dill', 'tarragon', 'marjoram', 'cardamom', 'cloves', 'allspice', 'anise', 'fennel',
+            'coriander', 'mustard seed', 'celery seed', 'caraway', 'saffron', 'white pepper',
+            'black pepper', 'red pepper flakes', 'italian seasoning', 'poultry seasoning',
+            'cajun seasoning', 'taco seasoning', 'everything bagel seasoning', 'msg', 'bouillon'
+        ],
+        'Oil': [  // Singular alias for Oils
+            'oil', 'olive oil', 'vegetable oil', 'canola oil', 'coconut oil', 'sesame oil',
+            'avocado oil', 'peanut oil', 'sunflower oil', 'grapeseed oil', 'walnut oil',
+            'almond oil', 'flaxseed oil', 'safflower oil', 'corn oil', 'palm oil',
+            'extra virgin olive oil', 'light olive oil', 'cooking spray', 'pam', 'butter spray'
+        ],
+        'Condiment': [  // Singular alias for Condiments
+            'sauce', 'ketchup', 'mustard', 'mayo', 'mayonnaise', 'relish', 'pickle', 'pickles',
+            'soy sauce', 'vinegar', 'hot sauce', 'bbq sauce', 'worcestershire', 'sriracha',
+            'ranch', 'dressing', 'salsa', 'condiment', 'tartar sauce', 'cocktail sauce',
+            'fish sauce', 'hoisin', 'oyster sauce', 'teriyaki', 'marinara', 'alfredo',
+            'pesto', 'hummus', 'tahini', 'guacamole', 'chimichurri', 'aioli', 'remoulade',
+            'balsamic', 'apple cider vinegar', 'rice vinegar', 'red wine vinegar', 'white vinegar',
+            'dijon', 'yellow mustard', 'honey mustard', 'spicy mustard', 'tabasco', 'buffalo sauce'
+        ],
+        'Sauces': [  // Synonym for Condiments
+            'sauce', 'ketchup', 'mustard', 'mayo', 'mayonnaise', 'relish', 'pickle', 'pickles',
+            'soy sauce', 'vinegar', 'hot sauce', 'bbq sauce', 'worcestershire', 'sriracha',
+            'ranch', 'dressing', 'salsa', 'condiment', 'tartar sauce', 'cocktail sauce',
+            'fish sauce', 'hoisin', 'oyster sauce', 'teriyaki', 'marinara', 'alfredo',
+            'pesto', 'hummus', 'tahini', 'guacamole', 'chimichurri', 'aioli', 'remoulade',
+            'balsamic', 'apple cider vinegar', 'rice vinegar', 'red wine vinegar', 'white vinegar',
+            'dijon', 'yellow mustard', 'honey mustard', 'spicy mustard', 'tabasco', 'buffalo sauce'
+        ],
+        'Beverage': [  // Singular alias for Beverages
+            'water', 'coffee', 'tea', 'juice', 'soda', 'pop', 'beer', 'wine', 'liquor', 'vodka',
+            'whiskey', 'rum', 'gin', 'tequila', 'champagne', 'cider', 'lemonade', 'iced tea',
+            'green tea', 'black tea', 'herbal tea', 'kombucha', 'sports drink', 'energy drink',
+            'coconut water', 'almond milk', 'oat milk', 'soy milk', 'rice milk', 'beverage',
+            'drink', 'drinks', 'espresso', 'cappuccino', 'latte', 'smoothie'
+        ],
+        'Drink': [  // Singular for Drinks
+            'water', 'coffee', 'tea', 'juice', 'soda', 'pop', 'beer', 'wine', 'liquor', 'vodka',
+            'whiskey', 'rum', 'gin', 'tequila', 'champagne', 'cider', 'lemonade', 'iced tea',
+            'green tea', 'black tea', 'herbal tea', 'kombucha', 'sports drink', 'energy drink',
+            'coconut water', 'almond milk', 'oat milk', 'soy milk', 'rice milk', 'beverage',
+            'drink', 'drinks', 'espresso', 'cappuccino', 'latte', 'smoothie'
+        ],
+        'Grain': [  // Singular alias for Grains
+            'grain', 'grains', 'wheat', 'barley', 'rye', 'millet', 'amaranth', 'buckwheat',
+            'spelt', 'kamut', 'teff', 'sorghum', 'wild rice', 'brown rice', 'white rice',
+            'jasmine rice', 'basmati rice', 'arborio rice', 'bread', 'pasta', 'rice', 'noodles', 
+            'spaghetti', 'penne', 'rigatoni', 'linguine', 'fettuccine', 'flour', 'tortilla', 
+            'tortillas', 'bagel', 'bagels', 'roll', 'rolls', 'baguette', 'pita', 'quinoa', 
+            'couscous', 'oats', 'oatmeal', 'cereal', 'crackers', 'bun', 'buns', 'croissant', 
+            'muffin', 'pancake', 'waffle', 'macaroni', 'lasagna', 'ravioli', 'angel hair', 
+            'orzo', 'fusilli', 'farfalle', 'rotini', 'vermicelli', 'ramen', 'udon', 'soba', 
+            'bulgur', 'farro', 'polenta', 'grits', 'cornmeal'
+        ],
+        'Beans': [  // Synonym for Legumes
+            'beans', 'lentils', 'chickpeas', 'black beans', 'kidney beans', 'pinto beans',
+            'navy beans', 'lima beans', 'cannellini', 'garbanzo', 'green lentils', 'red lentils',
+            'split peas', 'black-eyed peas', 'edamame', 'soybeans', 'tofu', 'tempeh', 'legume'
+        ],
+        'Snack': [  // Singular alias for Snacks
+            'chips', 'popcorn', 'pretzels', 'crackers', 'cookies', 'candy', 'chocolate bar',
+            'granola bar', 'protein bar', 'trail mix', 'jerky', 'snack', 'goldfish',
+            'cheez-its', 'doritos', 'lays', 'pringles', 'oreos'
+        ],
+
+    };
+    
+    // Get user's actual groups (defaultGroups is available globally)
+    const userGroups = defaultGroups || ['Fruits', 'Vegetables', 'Dairy', 'Carbs', 'Seeds', 'Other'];
+    
+    // Find the best matching category that exists in user's groups
+    for (const [category, keywords] of Object.entries(categoryKeywords)) {
+        // Check if this category exists in user's groups (case-insensitive)
+        const categoryExists = userGroups.some(g => g.toLowerCase() === category.toLowerCase());
+        
+        if (categoryExists) {
+            // Check if ingredient matches any keyword for this category
+            for (const keyword of keywords) {
+                if (nameLower.includes(keyword)) {
+                    // Return the exact category name as it appears in user's groups
+                    return userGroups.find(g => g.toLowerCase() === category.toLowerCase());
+                }
+            }
+        }
+    }
+    
+    // Default to Other if no match found
+    return 'Other';
+}
+
+function showUploadLoadingOverlay() {
+    const overlay = document.createElement('div');
+    overlay.className = 'upload-loading-overlay';
+    overlay.id = 'upload-loading-overlay';
+    overlay.innerHTML = `
+        <div class="upload-loading-content">
+            <div class="upload-spinner"></div>
+            <p>Processing ingredients...</p>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+}
+
+function hideUploadLoadingOverlay() {
+    const overlay = document.getElementById('upload-loading-overlay');
+    if (overlay) {
+        overlay.remove();
+    }
+}
+
+function showUploadSuccessMessage(message) {
+    const successMsg = document.createElement('div');
+    successMsg.className = 'upload-success-message';
+    successMsg.textContent = message;
+    document.body.appendChild(successMsg);
+    
+    // Fade in
+    setTimeout(() => {
+        successMsg.style.opacity = '1';
+    }, 10);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        successMsg.style.opacity = '0';
+        setTimeout(() => {
+            successMsg.remove();
+        }, 300);
+    }, 3000);
+}
+// Log when upload functions are defined
+console.log('Upload functions module loaded');
+console.log('triggerIngredientUpload defined?', typeof triggerIngredientUpload === 'function');
+
+
+// ================================
+// INGREDIENT SEARCH FUNCTIONALITY
+// ================================
+
+// Setup search listener when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('ingredients-search-input');
+    const clearBtn = document.getElementById('ingredients-search-clear');
+    
+    if (searchInput && clearBtn) {
+        // Search as user types
+        searchInput.addEventListener('input', function(e) {
+            const value = e.target.value;
+            filterIngredientsBySearch(value);
+            
+            // Show/hide clear button
+            if (value.trim()) {
+                clearBtn.style.display = 'block';
+            } else {
+                clearBtn.style.display = 'none';
+            }
+        });
+        
+        // Clear button click
+        clearBtn.addEventListener('click', function() {
+            searchInput.value = '';
+            clearBtn.style.display = 'none';
+            filterIngredientsBySearch(''); // Clear filter
+            searchInput.focus(); // Keep focus on search
+        });
+        
+        console.log('Ingredient search listener added');
+    }
+});
+
+function filterIngredientsBySearch(searchTerm) {
+    const term = searchTerm.toLowerCase().trim();
+    
+    // Get all ingredient groups
+    const groups = document.querySelectorAll('#ingredients-section .group-section');
+    
+    if (!term) {
+        // No search term - show all groups and ingredients
+        groups.forEach(group => {
+            group.style.display = '';
+            const rows = group.querySelectorAll('.ingredient-row');
+            rows.forEach(row => row.style.display = '');
+        });
+        return;
+    }
+    
+    // Search through each group
+    groups.forEach(group => {
+        const rows = group.querySelectorAll('.ingredient-row');
+        let hasVisibleIngredients = false;
+        
+        // Filter rows within this group
+        rows.forEach(row => {
+            const nameCell = row.querySelector('.ingredient-name');
+            const quantityCell = row.querySelector('.ingredient-quantity');
+            const notesCell = row.querySelector('.ingredient-notes');
+            
+            if (nameCell) {
+                const name = nameCell.textContent.toLowerCase();
+                const quantity = quantityCell ? quantityCell.textContent.toLowerCase() : '';
+                const notes = notesCell ? notesCell.textContent.toLowerCase() : '';
+                
+                // Check if search term matches name, quantity, or notes
+                const matches = name.includes(term) || quantity.includes(term) || notes.includes(term);
+                
+                if (matches) {
+                    row.style.display = '';
+                    hasVisibleIngredients = true;
+                } else {
+                    row.style.display = 'none';
+                }
+            }
+        });
+        
+        // Show/hide entire group based on matches
+        if (hasVisibleIngredients) {
+            group.style.display = '';
+            // Auto-expand group if it has matches and is collapsed
+            const groupHeader = group.querySelector('.group-header');
+            const groupContent = group.querySelector('.group-content');
+            if (groupHeader && groupContent) {
+                groupHeader.classList.add('expanded');
+                groupContent.style.display = 'block';
+            }
+        } else {
+            group.style.display = 'none';
+        }
+    });
+    
+    console.log(`Filtered ingredients by: "${term}"`);
 }
