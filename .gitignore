@@ -6,3 +6,4 @@ functions/.env*
 *.log
 .firebase/
 firestore-debug.log
+.DS_Store
