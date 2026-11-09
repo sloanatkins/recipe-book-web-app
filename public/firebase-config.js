@@ -11,3 +11,7 @@ const firebaseConfig = {
 
 // Initialize Firebase (compat version)
 firebase.initializeApp(firebaseConfig);
+
+// Safari (especially iPhone) can stall for a long time on Firestore's
+// default connection. This lets Firestore notice and switch to one that works.
+firebase.firestore().settings({ experimentalForceLongPolling: true, merge: true });

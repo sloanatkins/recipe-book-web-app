@@ -50,6 +50,11 @@ export function normalizeRecipeNode(node, pageUrl = null) {
       parseIsoDuration(node.totalTime) ||
       sumOrNull(parseIsoDuration(node.prepTime), parseIsoDuration(node.cookTime)),
     cuisine: firstString(node.recipeCuisine),
+    // "Dessert", "Main Course", "Drinks"... used to match the user's list.
+    // the schema drops this field, index.js reads it before that happens
+    categories: [...toArray(node.recipeCategory), ...toArray(node.recipeCuisine)].filter(
+      (x) => typeof x === "string" && x.trim()
+    ),
     ingredients: [
       {
         section: null,
@@ -60,6 +65,7 @@ export function normalizeRecipeNode(node, pageUrl = null) {
     ],
     instructions: parseInstructions(node.recipeInstructions),
     imageUrl: parseImage(node.image),
+    rawImage: node.image ?? null, // images.js resolves relative links etc.
     sourceUrl: pageUrl,
   };
 }

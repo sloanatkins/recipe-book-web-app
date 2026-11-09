@@ -394,24 +394,31 @@ function setupCardRepositioning(card, id, r) {
     const saveBtn = card.querySelector(".card-save-position");
     const cancelBtn = card.querySelector(".card-cancel-position");
 
-    img.style.position = "absolute";
-    img.style.left = "50%";
-    img.style.transform = "translateX(-50%)";
+    // The CSS keeps every card image the same size with object-fit: cover
+    // (and pins top: 0), so moving the <img> itself does nothing. Instead we
+    // move which part of the photo shows, as a % from top (0) to bottom (100).
+    // Older recipes saved a pixel offset that the CSS ignored, so they start
+    // centered at 50%, which is what they look like right now anyway.
+    let savedPct = typeof r.imagePositionY === "number" ? r.imagePositionY : 50;
+    let pct = savedPct;
+    const applyPosition = () => { img.style.objectPosition = `50% ${pct}%`; };
+    applyPosition();
 
-    let dragging = false;
-    let startY = 0;
-    let originalTop = parseFloat(img.dataset.offset || 0);
+    // how many pixels of the photo are hidden above + below the card
+    function hiddenHeight() {
+        const wrap = img.parentElement;
+        if (!img.naturalWidth || !img.naturalHeight) return 0;
+        const scale = Math.max(wrap.clientWidth / img.naturalWidth, wrap.clientHeight / img.naturalHeight);
+        return img.naturalHeight * scale - wrap.clientHeight;
+    }
 
-    img.style.top = originalTop + "px";
-
-    function clamp(y) {
-        const imgH = img.offsetHeight;
-        const wrapH = img.parentElement.offsetHeight;
-        const min = wrapH - imgH;
-
-        if (y > 0) return 0;
-        if (y < min) return min;
-        return y;
+    function exitRepositioning() {
+        card.classList.remove("is-repositioning");
+        saveBar.classList.add("hidden");
+        img.style.cursor = "";
+        img.style.touchAction = "";
+        repositionBtn.style.display = "inline-block";
+        card.querySelector(".card-menu-btn").style.display = "inline-block";
     }
 
     repositionBtn.addEventListener("click", e => {
@@ -422,65 +429,67 @@ function setupCardRepositioning(card, id, r) {
         repositionBtn.style.display = "none";
         card.querySelector(".card-menu-btn").style.display = "none";
 
-        card.onclick = ev => ev.stopPropagation();
+        img.style.cursor = "grab";
+        img.style.touchAction = "none"; // so dragging on a phone doesn't scroll the page
+        // loadRecipes' click handler already skips opening while is-repositioning is on
     });
 
-    img.addEventListener("mousedown", e => {
+    // pointer events = mouse and touch with the same code
+    img.addEventListener("pointerdown", e => {
         if (!card.classList.contains("is-repositioning")) return;
 
         e.preventDefault();
         e.stopPropagation(); // Prevent card click from firing
-        dragging = true;
-        startY = e.clientY;
-        originalTop = parseFloat(img.style.top || 0);
+
+        const hidden = hiddenHeight();
+        if (hidden <= 1) return; // photo already fits, nothing to move
+
+        const startY = e.clientY;
+        const startPct = pct;
         img.style.cursor = "grabbing";
+        img.setPointerCapture?.(e.pointerId);
 
         function move(ev) {
-            if (!dragging) return;
-            ev.preventDefault(); // Prevent any default behavior during drag
+            ev.preventDefault();
+            // dragging down shows more of the top of the photo, so % goes down
             const dy = ev.clientY - startY;
-            let newTop = clamp(originalTop + dy);
-            img.style.top = newTop + "px";
+            pct = Math.min(100, Math.max(0, startPct - (dy / hidden) * 100));
+            applyPosition();
         }
 
         function stop() {
-            dragging = false;
             img.style.cursor = "grab";
-            document.removeEventListener("mousemove", move);
-            document.removeEventListener("mouseup", stop);
+            img.removeEventListener("pointermove", move);
+            img.removeEventListener("pointerup", stop);
+            img.removeEventListener("pointercancel", stop);
         }
 
-        document.addEventListener("mousemove", move);
-        document.addEventListener("mouseup", stop);
+        img.addEventListener("pointermove", move);
+        img.addEventListener("pointerup", stop);
+        img.addEventListener("pointercancel", stop);
+    });
+
+    // stop clicks on the photo from opening the recipe while repositioning
+    img.addEventListener("click", e => {
+        if (card.classList.contains("is-repositioning")) e.stopPropagation();
     });
 
     cancelBtn.addEventListener("click", e => {
         e.stopPropagation();
-        card.classList.remove("is-repositioning");
-        saveBar.classList.add("hidden");
-
-        img.style.top = (r.imageOffsetY || 0) + "px";
-
-        repositionBtn.style.display = "inline-block";
-        card.querySelector(".card-menu-btn").style.display = "inline-block";
-
-        card.onclick = () => openExistingRecipe(id);
+        pct = savedPct;
+        applyPosition();
+        exitRepositioning();
     });
 
     saveBtn.addEventListener("click", e => {
         e.stopPropagation();
-        card.classList.remove("is-repositioning");
-        saveBar.classList.add("hidden");
+        savedPct = Math.round(pct * 10) / 10;
+        pct = savedPct;
+        r.imagePositionY = savedPct;
+        applyPosition();
+        exitRepositioning();
 
-        const newOffset = parseFloat(img.style.top);
-        img.dataset.offset = newOffset;
-
-        db.collection("recipes").doc(id).update({ imageOffsetY: newOffset });
-
-        repositionBtn.style.display = "inline-block";
-        card.querySelector(".card-menu-btn").style.display = "inline-block";
-
-        card.onclick = () => openExistingRecipe(id);
+        db.collection("recipes").doc(id).update({ imagePositionY: savedPct });
     });
 }
 
@@ -1378,6 +1387,8 @@ Fresh chives or herbs (optional)`,
 // ================================
 async function finalizeRecipeSave() {
     if (!currentDraftId) return;
+    // still loading, saving now would write blank fields over the recipe
+    if (typeof isLoadingRecipe !== 'undefined' && isLoadingRecipe) return;
 
     const doc = await db.collection("recipes").doc(currentDraftId).get();
     const existing = doc.data() || {};

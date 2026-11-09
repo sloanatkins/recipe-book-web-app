@@ -1,8 +1,11 @@
 import { verifyFirebaseToken } from "./auth.js";
-import { fetchPage, ImportError } from "./fetchPage.js";
+import { fetchPage, checkUrl, ImportError } from "./fetchPage.js";
+import { isNotionUrl, fetchNotionPage } from "./notion.js";
+import { cleanCuisineList, matchCuisine } from "./cuisine.js";
 import { extractRecipeFromHtml, htmlToText, decodeEntities } from "./jsonld.js";
 import { buildMessages, callGroq } from "./groq.js";
 import { validateRecipe } from "./schema.js";
+import { pickRecipeImage } from "./images.js";
 import { checkUserLimit, recordUserImport, checkGlobalModelLimit, recordModelCall } from "./limits.js";
 
 // POST /import
@@ -74,7 +77,12 @@ export function createHandler(deps = {}) {
     const remaining = Math.max(0, userLimit - usage.used - 1);
 
     try {
-      const result = await runImport(body, env, deps);
+      const cuisines = cleanCuisineList(body?.cuisines);
+      const { candidates, ...result } = await runImport(body, env, deps, cuisines);
+      // when the app sent its list, only ever return a name from that list
+      if (cuisines.length) {
+        result.recipe = { ...result.recipe, cuisine: matchCuisine([result.recipe.cuisine, ...(candidates || [])], cuisines) };
+      }
       return reply(200, { ...result, remaining });
     } catch (err) {
       if (err instanceof ImportError) return fail(err.status, err.code, err.message);
@@ -84,17 +92,36 @@ export function createHandler(deps = {}) {
   };
 }
 
-async function runImport(body, env, deps) {
+async function runImport(body, env, deps, cuisines = []) {
   if (!body || typeof body !== "object") throw new ImportError("bad_request", "Couldn't read that request.");
 
   if (body.type === "url") {
+    // notion pages need their own path (see notion.js)
+    if (isNotionUrl(body.url)) {
+      const pageUrl = checkUrl(body.url).toString();
+      const page = await fetchNotionPage(pageUrl, { fetchImpl: deps.fetchImpl || fetch });
+      // cocktails and short recipes can be tiny, so a lower bar than web pages
+      if (page.text.length < 40) {
+        throw new ImportError("page_unreadable", "That Notion page looks empty. Make sure it's shared to the web.", 422);
+      }
+      const recipe = await askModel({ type: "text", text: page.text.slice(0, MAX_TEXT_CHARS), cuisines }, env, deps);
+      return {
+        recipe: { ...recipe, sourceUrl: pageUrl, imageUrl: recipe.imageUrl || page.imageUrl },
+        source: "ai",
+      };
+    }
+
     const { html, finalUrl } = await fetchPage(body.url, { fetchImpl: deps.fetchImpl || fetch });
 
     // 1) free path: the site's own structured data
     const fromLd = extractRecipeFromHtml(html, finalUrl);
     if (fromLd) {
       const checked = validateRecipe(fromLd);
-      if (checked.ok) return { recipe: checked.recipe, source: "jsonld" };
+      if (checked.ok) {
+        // the recipe data's photo, or the page's share image if that's missing/relative
+        const imageUrl = pickRecipeImage(html, finalUrl, fromLd.rawImage);
+        return { recipe: { ...checked.recipe, imageUrl }, source: "jsonld", candidates: fromLd.categories };
+      }
       // bad JSON-LD (it happens), fall through to the model
     }
 
@@ -103,9 +130,10 @@ async function runImport(body, env, deps) {
     if (text.length < MIN_PAGE_TEXT) {
       throw new ImportError("page_unreadable", "Couldn't read a recipe from that page. Try a screenshot instead.", 422);
     }
-    const recipe = await askModel({ type: "text", text }, env, deps);
+    const recipe = await askModel({ type: "text", text, cuisines }, env, deps);
     return {
-      recipe: { ...recipe, sourceUrl: finalUrl, imageUrl: recipe.imageUrl || findOgImage(html) },
+      // the page's real share image beats whatever link the model guessed
+      recipe: { ...recipe, sourceUrl: finalUrl, imageUrl: pickRecipeImage(html, finalUrl) || recipe.imageUrl },
       source: "ai",
     };
   }
@@ -123,13 +151,13 @@ async function runImport(body, env, deps) {
         throw new ImportError("too_large", "One of those photos is too big.", 413);
       }
     }
-    return { recipe: await askModel({ type: "images", images }, env, deps), source: "ai" };
+    return { recipe: await askModel({ type: "images", images, cuisines }, env, deps), source: "ai" };
   }
 
   if (body.type === "text") {
     const text = typeof body.text === "string" ? body.text.trim() : "";
     if (text.length < 50) throw new ImportError("bad_request", "There isn't enough text to find a recipe in.");
-    return { recipe: await askModel({ type: "text", text: text.slice(0, MAX_TEXT_CHARS) }, env, deps), source: "ai" };
+    return { recipe: await askModel({ type: "text", text: text.slice(0, MAX_TEXT_CHARS), cuisines }, env, deps), source: "ai" };
   }
 
   throw new ImportError("bad_request", "Unknown import type.");

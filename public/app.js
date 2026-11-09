@@ -1910,7 +1910,10 @@ function initSidePanel() {
 
     stars.forEach(star => {
         star.onclick = function () {
-            const rating = parseInt(this.dataset.rating);
+            let rating = parseInt(this.dataset.rating);
+            // clicking the rating that's already set clears it
+            const current = [...stars].filter(s => s.classList.contains("active")).length;
+            if (rating === current) rating = 0;
 
             stars.forEach(s => {
                 const val = parseInt(s.dataset.rating);
@@ -2237,7 +2240,8 @@ function initCoverImage() {
                 exitRepositionMode(true);
             } else {
                 e.stopPropagation();
-                modalOverlay.classList.remove("hidden");
+                // clicking Change cover again closes the popup
+                modalOverlay.classList.toggle("hidden");
             }
         });
     }
@@ -2373,6 +2377,18 @@ function initCoverImage() {
         modalOverlay.onclick = e => {
             if (e.target === modalOverlay) modalOverlay.classList.add("hidden");
         };
+
+        // close the cover popup when clicking anywhere outside it
+        document.addEventListener("click", e => {
+            if (modalOverlay.classList.contains("hidden")) return;
+            if (e.target.closest("#image-url-modal, #change-cover-btn, #cover-image-placeholder")) return;
+            modalOverlay.classList.add("hidden");
+        });
+
+        // and on Escape
+        document.addEventListener("keydown", e => {
+            if (e.key === "Escape") modalOverlay.classList.add("hidden");
+        });
     }
 }
 

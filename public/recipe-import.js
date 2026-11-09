@@ -90,7 +90,9 @@ function buildRecipeImportModal() {
                     </div>
                     <div>
                         <label class="ri-label" for="ri-cuisine">Cuisine</label>
-                        <input type="text" id="ri-cuisine" class="ri-input" placeholder="Optional">
+                        <select id="ri-cuisine" class="ri-input ri-select">
+                            <option value="">None</option>
+                        </select>
                     </div>
                 </div>
 
@@ -157,6 +159,9 @@ function buildRecipeImportModal() {
 function openRecipeImport() {
     buildRecipeImportModal();
     importDraft = null;
+    // fresh cuisine list each time (they might have added one, or switched workspace)
+    riCuisinesPromise = null;
+    riGetCuisines();
     document.getElementById('ri-url').value = '';
     setImportStatus('');
     showImportStep('source');
@@ -203,12 +208,15 @@ async function callRecipeImportWorker(payload) {
     if (!user) throw new Error('Please sign in again.');
     const token = await user.getIdToken();
 
+    // send the names so the AI picks one of the user's own cuisines
+    const cuisines = (await riGetCuisines()).map(c => c.name);
+
     let res;
     try {
         res = await fetch(RECIPE_IMPORT_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify(payload),
+            body: JSON.stringify({ ...payload, cuisines }),
         });
     } catch (err) {
         throw Object.assign(new Error('Couldn\'t reach the importer. Check your connection.'), { offline: true });
@@ -373,7 +381,7 @@ function showImportReview(recipe, source, coverDataUrl = null) {
     document.getElementById('ri-title').value = recipe.title || '';
     document.getElementById('ri-servings').value = recipe.servings || '';
     document.getElementById('ri-minutes').value = recipe.minutes || '';
-    document.getElementById('ri-cuisine').value = recipe.cuisine || '';
+    riFillCuisineDropdown(recipe.cuisine);
     document.getElementById('ri-ingredients').value = riIngredientsToText(recipe.ingredients);
     document.getElementById('ri-instructions').value = (recipe.instructions || []).join('\n');
 
@@ -439,8 +447,8 @@ async function saveImportedRecipe() {
     try {
         const servings = parseInt(document.getElementById('ri-servings').value) || 0;
         const minutes = parseInt(document.getElementById('ri-minutes').value) || 0;
-        // same format the default recipes use: "1. step" with a blank line between
-        const instructions = steps.map((s, i) => `${i + 1}. ${s}`).join('\n\n');
+        // "1. step", one per line with no blank lines in between
+        const instructions = steps.map((s, i) => `${i + 1}. ${s}`).join('\n');
 
         // open a fresh recipe panel exactly like "From Scratch" does
         openSidePanel('recipe');
@@ -469,11 +477,11 @@ async function saveImportedRecipe() {
             await autoSave('imageUrl', importDraft.cover);
         }
 
-        // only tag a cuisine if it matches one the user already has
-        const cuisineName = document.getElementById('ri-cuisine').value.trim();
-        if (cuisineName && typeof addCuisineTag === 'function') {
-            const match = await riFindExistingCuisine(cuisineName);
-            if (match) await addCuisineTag(match);
+        // tag whichever cuisine they picked in the dropdown
+        const cuisineSelect = document.getElementById('ri-cuisine');
+        const picked = cuisineSelect.selectedOptions[0];
+        if (cuisineSelect.value && picked && typeof addCuisineTag === 'function') {
+            await addCuisineTag({ id: cuisineSelect.value, name: picked.textContent });
         }
 
         closeRecipeImport();
@@ -486,16 +494,53 @@ async function saveImportedRecipe() {
     }
 }
 
-async function riFindExistingCuisine(name) {
-    const user = auth.currentUser;
-    if (!user) return null;
-    const snap = await db.collection('cuisines').where('userId', '==', user.uid).get();
-    const wanted = name.toLowerCase();
-    let found = null;
-    snap.forEach(doc => {
-        if (!found && (doc.data().name || '').trim().toLowerCase() === wanted) {
-            found = { id: doc.id, name: doc.data().name };
+// the current workspace's cuisines (same query cuisines.js uses). loaded
+// once each time the modal opens, then reused for the worker + the dropdown
+let riCuisinesPromise = null;
+
+function riGetCuisines() {
+    if (!riCuisinesPromise) {
+        riCuisinesPromise = (async () => {
+            const user = auth.currentUser;
+            if (!user) return [];
+            const ws = typeof getWorkspaceFilter === 'function' ? getWorkspaceFilter() : { type: 'personal' };
+            const query = ws.type === 'teamspace'
+                ? db.collection('cuisines').where('teamspaceId', '==', ws.teamspaceId)
+                : db.collection('cuisines').where('userId', '==', user.uid);
+
+            const snap = await query.get();
+            const cuisines = [];
+            snap.forEach(doc => {
+                const name = (doc.data().name || '').trim();
+                if (name) cuisines.push({ id: doc.id, name });
+            });
+            return cuisines.sort((a, b) => a.name.localeCompare(b.name));
+        })().catch(err => {
+            console.error('Couldn\'t load cuisines for import:', err);
+            riCuisinesPromise = null; // try again next time
+            return [];
+        });
+    }
+    return riCuisinesPromise;
+}
+
+// fills the dropdown and preselects the cuisine the worker picked
+async function riFillCuisineDropdown(guess) {
+    const select = document.getElementById('ri-cuisine');
+    select.innerHTML = '<option value="">None</option>';
+    select.disabled = true;
+
+    try {
+        const cuisines = await riGetCuisines();
+        const wanted = (guess || '').trim().toLowerCase();
+        for (const c of cuisines) {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.name; // textContent, so names can't inject html
+            if (wanted && c.name.toLowerCase() === wanted) opt.selected = true;
+            select.appendChild(opt);
         }
-    });
-    return found;
+    } finally {
+        select.disabled = false;
+    }
 }
